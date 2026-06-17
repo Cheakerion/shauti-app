@@ -73,7 +73,11 @@ export default function Home() {
     ]
     for (const url of urls) {
       try {
-        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-cache' })
+        const res = await fetch(url, {
+          signal: ctrl.signal,
+          cache: 'no-store',
+          headers: { 'Accept': 'application/json', 'User-Agent': 'QuizApp/1.0' },
+        })
         code = res.status
         if (res.ok) { latestVer = (await res.json()).version || ''; break }
         lastErr = 'HTTP ' + res.status
