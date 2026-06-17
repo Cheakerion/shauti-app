@@ -64,20 +64,29 @@ export default function Home() {
 
   async function checkUpdate() {
     const ctrl = new AbortController()
-    const timer = setTimeout(() => ctrl.abort(), 8000)
-    let latestVer = ''
-    try {
-      const res = await fetch('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json', { signal: ctrl.signal })
-      latestVer = (await res.json()).version || ''
-    } catch (e) {}
+    const timer = setTimeout(() => ctrl.abort(), 10000)
+    // Try multiple CDN endpoints
+    const urls = [
+      'https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json',
+      'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json',
+    ]
+    let latestVer = '', lastErr = ''
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { signal: ctrl.signal })
+        if (res.ok) { latestVer = (await res.json()).version || ''; break }
+        lastErr = `HTTP ${res.status}`
+      } catch (e: any) { lastErr = e.message || String(e) }
+    }
     const cur = localStorage.getItem('quiz_app_ver') || ''
     if (latestVer && latestVer !== cur) {
       if (confirm(`发现新版本 ${latestVer}\n是否下载更新？`)) {
         localStorage.setItem('quiz_app_ver', latestVer)
+        // Try jsDelivr first for download, fall back to GitHub
         window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
       }
     } else {
-      alert(latestVer ? '已是最新版本' : '未检测到更新')
+      alert(latestVer ? '已是最新版本' : `未检测到更新 (${lastErr})`)
     }
     clearTimeout(timer)
   }
