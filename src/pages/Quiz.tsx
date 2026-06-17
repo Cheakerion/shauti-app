@@ -22,10 +22,31 @@ export default function Quiz() {
   const [confirmMode, setConfirmMode] = useState(false)
   const [showQuestionList, setShowQuestionList] = useState(false)
 
+  // Save & restore quiz session
+  const sessionKey = `quiz_session_${bankId}`
+
   useEffect(() => {
     if (!bankId) return
     getQuestionsByBank(bankId).then((qs) => {
       setQuestions(qs)
+
+      // Try to restore saved session
+      const saved = localStorage.getItem(sessionKey)
+      if (saved) {
+        try {
+          const s = JSON.parse(saved)
+          setCurrentIndex(s.currentIndex || 0)
+          setMode(s.mode || 'sequential')
+          setShuffledIndices(s.shuffledIndices || [])
+          setStartTime(s.startTime || Date.now())
+          if (s.historyAnswers) {
+            setHistoryAnswers(new Map(Object.entries(s.historyAnswers)))
+          }
+          return
+        } catch (e) {}
+      }
+
+      // No saved session: new shuffle
       const indices = Array.from({ length: qs.length }, (_, i) => i)
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -34,6 +55,19 @@ export default function Quiz() {
       setShuffledIndices(indices)
     })
   }, [bankId])
+
+  // Save session on every relevant state change
+  useEffect(() => {
+    if (!bankId || questions.length === 0) return
+    const session = {
+      currentIndex,
+      mode,
+      shuffledIndices,
+      startTime,
+      historyAnswers: Object.fromEntries(historyAnswers),
+    }
+    localStorage.setItem(sessionKey, JSON.stringify(session))
+  }, [currentIndex, mode, historyAnswers, shuffledIndices, startTime, bankId, questions.length])
 
   const question = useMemo(() => {
     if (questions.length === 0) return null
@@ -62,6 +96,7 @@ export default function Quiz() {
   }, [historyAnswers, questions])
 
   function fullRestart() {
+    localStorage.removeItem(sessionKey)
     setCurrentIndex(0)
     setSelectedAnswer(null)
     setPendingAnswer(null)
@@ -80,7 +115,8 @@ export default function Quiz() {
 
   async function clearAndRestart() {
     if (!bankId) return
-    if (!confirm('确定清除该题库的所有答题记录？\n当前题库的所有答题记录将从数据库删除，错题本也会被清空。')) return
+    if (!confirm('确定清除该题库的所有答题记录？\n所有做题记录和错题本都将清空。')) return
+    localStorage.removeItem(sessionKey)
     await db.answerRecords.where('bankId').equals(bankId).delete()
     fullRestart()
   }
