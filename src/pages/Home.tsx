@@ -72,37 +72,60 @@ export default function Home() {
 
   async function checkUpdate() {
     const Android = (window as any).Android
-    if (Android && Android.checkVersion) {
-      const latestVer = Android.checkVersion()
-      if (latestVer.startsWith('ERR:')) { alert('更新失败: ' + latestVer); return }
-      const cur = localStorage.getItem('quiz_app_ver') || ''
-      if (!cur && latestVer) localStorage.setItem('quiz_app_ver', latestVer)
-      if (latestVer && newer(latestVer, cur || '0')) {
-        if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
-          localStorage.setItem('quiz_app_ver', latestVer)
-          window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
-        }
-      } else {
-        alert(latestVer ? `已是最新 (v${latestVer})` : '未检测到更新')
+    const cur = localStorage.getItem('quiz_app_ver') || ''
+
+    // 并行获取：Android 桥 + 浏览器 fetch，取最新的
+    const candidates: (string | null)[] = [null, null]
+
+    const doFetch = async () => {
+      try {
+        const ctrl = new AbortController()
+        const timer = setTimeout(() => ctrl.abort(), 10000)
+        const url = `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${Date.now()}`
+        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
+        clearTimeout(timer)
+        return (await res.json()).version
+      } catch (e: any) {
+        console.warn('fetch版本失败:', e.message)
+        return null
       }
-      return
     }
-    // Fallback: browser fetch（jsDelivr 有缓存，加时间戳破缓存）
-    try {
-      const ctrl = new AbortController()
-      const timer = setTimeout(() => ctrl.abort(), 10000)
-      const url = `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${Date.now()}`
-      const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
-      clearTimeout(timer)
-      const latestVer = (await res.json()).version
-      const cur = localStorage.getItem('quiz_app_ver') || ''
-      if (newer(latestVer, cur || '0')) {
-        if (confirm(`发现 v${latestVer}\n下载？`)) {
-          localStorage.setItem('quiz_app_ver', latestVer)
-          window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
+
+    const getAndroidVer = (): string | null => {
+      try {
+        if (Android?.checkVersion) {
+          const v = Android.checkVersion()
+          if (v && !v.startsWith('ERR:')) return v
         }
-      } else { alert(`已是最新 (v${latestVer})`) }
-    } catch (e: any) { alert('更新失败: ' + (e.message || e)) }
+      } catch (e) {}
+      return null
+    }
+
+    // 并行请求
+    const [androidVer, fetchVer] = await Promise.all([
+      Promise.resolve(getAndroidVer()),
+      doFetch(),
+    ])
+    candidates[0] = androidVer
+    candidates[1] = fetchVer
+
+    // 取最新的版本
+    let latestVer = ''
+    for (const v of candidates) {
+      if (v && newer(v, latestVer || '0')) latestVer = v
+    }
+
+    if (!latestVer) { alert('更新失败: 无法获取版本信息'); return }
+    if (!cur && latestVer) localStorage.setItem('quiz_app_ver', latestVer)
+
+    if (newer(latestVer, cur || '0')) {
+      if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
+        localStorage.setItem('quiz_app_ver', latestVer)
+        window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
+      }
+    } else {
+      alert(`已是最新 (v${latestVer})`)
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
