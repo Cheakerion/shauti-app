@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getWrongQuestions, getQuestionCount, saveAnswerRecord, db } from '../db'
 import type { Question, AnswerRecord } from '../types'
@@ -12,8 +12,8 @@ export default function WrongBook() {
   const [totalCount, setTotalCount] = useState(0)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
-  const [newCorrectIds, setNewCorrectIds] = useState<Set<string>>(new Set())
   const [showComplete, setShowComplete] = useState(false)
+  const [showGrid, setShowGrid] = useState(false)
 
   useEffect(() => {
     if (!bankId) return
@@ -28,11 +28,6 @@ export default function WrongBook() {
 
   const question = wrongQuestions[currentIndex] || null
 
-  const remainingCount = useMemo(
-    () => wrongQuestions.length - newCorrectIds.size,
-    [wrongQuestions.length, newCorrectIds]
-  )
-
   async function handleSelect(answer: string) {
     if (selectedAnswer !== null || !question) return
     setSelectedAnswer(answer)
@@ -46,10 +41,6 @@ export default function WrongBook() {
       timestamp: Date.now(),
     }
     await saveAnswerRecord(record)
-
-    if (isCorrect) {
-      setNewCorrectIds((prev) => new Set(prev).add(question.id))
-    }
   }
 
   async function clearAllWrong() {
@@ -57,7 +48,6 @@ export default function WrongBook() {
     if (!confirm('确定清空该题库的所有错题记录？\n所有答题记录将被删除，无法恢复。')) return
     await db.answerRecords.where('bankId').equals(bankId).delete()
     setWrongQuestions([])
-    setNewCorrectIds(new Set())
     setShowComplete(false)
   }
 
@@ -65,7 +55,6 @@ export default function WrongBook() {
     if (!bankId) return
     getWrongQuestions(bankId).then(qs => {
       setWrongQuestions(qs)
-      setNewCorrectIds(new Set())
       setCurrentIndex(0)
       setSelectedAnswer(null)
       setShowComplete(false)
@@ -127,9 +116,7 @@ export default function WrongBook() {
         <div className="card text-center" style={{ padding: '32px 16px' }}>
           <h2>✅ 错题复习完毕</h2>
           <div className="detail" style={{ marginTop: 12 }}>
-            本轮新掌握 <span style={{ color: '#16a34a', fontWeight: 600 }}>{newCorrectIds.size}</span> 题
-            <br />
-            剩余错题 <span style={{ color: '#dc2626', fontWeight: 600 }}>{remainingCount}</span> 题
+            共复习 {wrongQuestions.length} 道错题
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16, flexWrap: 'wrap' }}>
             <button
@@ -137,7 +124,6 @@ export default function WrongBook() {
               onClick={() => {
                 setCurrentIndex(0)
                 setSelectedAnswer(null)
-                setNewCorrectIds(new Set())
                 setShowComplete(false)
               }}
             >
@@ -165,6 +151,7 @@ export default function WrongBook() {
         <span className="title">
           错题本 ({doneCount}/{wrongQuestions.length})
         </span>
+        <button className="btn btn-sm btn-outline" onClick={() => setShowGrid(true)}>📋</button>
       </div>
 
       {/* 进度条 */}
@@ -173,8 +160,7 @@ export default function WrongBook() {
       {/* 统计 */}
       <div className="quiz-stats">
         <span>
-          总错题 <span style={{ color: '#dc2626' }}>{wrongQuestions.length}</span>
-          {' '}已掌握 <span style={{ color: '#16a34a' }}>{newCorrectIds.size}</span>
+          共 <span style={{ color: '#dc2626' }}>{wrongQuestions.length}</span> 道错题
         </span>
         <span className="count">
           {currentIndex + 1} / {wrongQuestions.length}
@@ -230,7 +216,7 @@ export default function WrongBook() {
               }}
             >
               {selectedAnswer === question.answer
-                ? '✅ 正确！已从错题本移除'
+                ? '✅ 正确！'
                 : `❌ 错误！正确答案是 ${question.answer}`}
             </div>
           )}
@@ -255,6 +241,31 @@ export default function WrongBook() {
           {currentIndex >= wrongQuestions.length - 1 ? '完成' : '下一题 →'}
         </button>
       </div>
+
+      {/* Question grid */}
+      {showGrid && (
+        <div className="modal-overlay" onClick={() => setShowGrid(false)}>
+          <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <h3>选择题目</h3>
+            <div className="question-grid">
+              {wrongQuestions.map((q, i) => {
+                let cls = 'q-dot'
+                if (i === currentIndex) cls += ' q-current'
+                return (
+                  <button key={q.id} className={cls} onClick={() => {
+                    setCurrentIndex(i)
+                    setSelectedAnswer(null)
+                    setShowGrid(false)
+                  }}>
+                    {q.index}
+                  </button>
+                )
+              })}
+            </div>
+            <button className="btn mt-16" onClick={() => setShowGrid(false)}>关闭</button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getQuestionsByBank, saveAnswerRecord, db } from '../db'
 import type { Question, QuizMode, AnswerRecord } from '../types'
@@ -21,6 +21,8 @@ export default function Quiz() {
   const [historyAnswers, setHistoryAnswers] = useState<Map<string, string>>(new Map())
   const [confirmMode, setConfirmMode] = useState(false)
   const [showQuestionList, setShowQuestionList] = useState(false)
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
 
   // Save & restore quiz session
   const sessionKey = `quiz_session_${bankId}`
@@ -163,6 +165,20 @@ export default function Quiz() {
     setShowQuestionList(false)
   }
 
+  // Swipe navigation
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }, [])
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) nextQuestion()
+      else prevQuestion()
+    }
+  }, [currentIndex, questions.length, allDone])
+
   function prevQuestion() {
     if (currentIndex > 0) setCurrentIndex((i) => i - 1)
   }
@@ -223,10 +239,10 @@ export default function Quiz() {
       {/* 模式切换 */}
       <div className="mode-toggle">
         <button className={mode === 'sequential' ? 'active' : ''} onClick={() => {
-          setMode('sequential'); setCurrentIndex(0); fullRestart()
+          setMode('sequential'); setCurrentIndex(0); setSelectedAnswer(null)
         }}>顺序刷题</button>
         <button className={mode === 'random' ? 'active' : ''} onClick={() => {
-          setMode('random'); setCurrentIndex(0); fullRestart()
+          setMode('random'); setCurrentIndex(0); setSelectedAnswer(null)
         }}>随机刷题</button>
       </div>
 
@@ -250,7 +266,8 @@ export default function Quiz() {
 
       {/* 题目卡片 */}
       {question && (
-        <div className="card">
+        <div className="card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
+          style={{ touchAction: 'pan-y' }}>
           <div className="stem-text">{question.stem}</div>
 
           <div className="option-list">

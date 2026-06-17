@@ -144,7 +144,7 @@ export default function Home() {
         const res = await fetch(`http://${serverIP.trim()}:8888/api/version`, { signal: ctrl.signal })
         const info = await res.json()
         if (info.apkAvailable) {
-          if (confirm(`发现新版本\n构建: ${new Date(info.buildDate).toLocaleString()}\n从电脑下载？`)) {
+          if (confirm(`发现新版本\n从电脑下载？`)) {
             window.open(`http://${serverIP.trim()}:8888/api/apk`, '_blank')
           }
           clearTimeout(timer); return
@@ -152,26 +152,24 @@ export default function Home() {
       } catch (e) {}
     }
 
-    // 2. Try jsDelivr (CDN, works in China)
+    // 2. Try jsDelivr for version check
+    let latestVer = ''
     try {
       const res = await fetch('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json', { signal: ctrl.signal })
       const info = await res.json()
-      if (info.version) {
-        const cur = localStorage.getItem('quiz_app_ver') || ''
-        if (info.version !== cur) {
-          if (confirm(`发现新版本 ${info.version}\n下载更新？`)) {
-            localStorage.setItem('quiz_app_ver', info.version)
-            window.open('https://github.com/Cheakerion/shauti-app/releases/latest', '_blank')
-          }
-        } else {
-          alert('已是最新版本')
-        }
-        clearTimeout(timer); return
-      }
+      latestVer = info.version || ''
     } catch (e) {}
 
-    // 3. Direct GitHub releases page (usually accessible)
-    alert('请访问 GitHub 下载最新版：\nhttps://github.com/Cheakerion/shauti-app/releases')
+    const cur = localStorage.getItem('quiz_app_ver') || ''
+    if (latestVer && latestVer !== cur) {
+      if (confirm(`发现新版本 ${latestVer}\n是否下载更新？`)) {
+        localStorage.setItem('quiz_app_ver', latestVer)
+        // Direct download from GitHub releases
+        window.open('https://github.com/Cheakerion/shauti-app/releases/latest/download/default.apk', '_blank')
+      }
+    } else {
+      alert(latestVer ? '已是最新版本' : '未检测到更新\n连上电脑 WiFi 可快速更新')
+    }
     clearTimeout(timer)
   }
 
