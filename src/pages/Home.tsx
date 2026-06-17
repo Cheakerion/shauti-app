@@ -8,6 +8,7 @@ export default function Home() {
   const [banks, setBanks] = useState<QuestionBank[]>([])
   const [dragover, setDragover] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [updateVer, setUpdateVer] = useState<string | null>(null)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -16,6 +17,27 @@ export default function Home() {
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
+
+  // 启动时自动检测更新
+  useEffect(() => {
+    autoCheckUpdate()
+  }, [])
+
+  async function autoCheckUpdate() {
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 8000)
+      const url = `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${Date.now()}`
+      const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
+      clearTimeout(timer)
+      const latestVer = (await res.json()).version
+      const cur = localStorage.getItem('quiz_app_ver') || ''
+      if (!cur && latestVer) localStorage.setItem('quiz_app_ver', latestVer)
+      if (latestVer && newer(latestVer, cur || '0')) {
+        setUpdateVer(latestVer)
+      }
+    } catch (e) { /* 静默失败，用户可手动检查 */ }
+  }
 
   // Receive file from Android WebView (WeChat share, file open, etc.)
   useEffect(() => {
@@ -141,6 +163,17 @@ export default function Home() {
 
   return (
     <div>
+      {updateVer && (
+        <div className="update-banner">
+          <span>发现新版本 v{updateVer}！</span>
+          <button className="btn btn-sm" onClick={() => {
+            localStorage.setItem('quiz_app_ver', updateVer)
+            window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
+            setUpdateVer(null)
+          }}>下载更新</button>
+          <button className="btn btn-sm btn-outline" onClick={() => setUpdateVer(null)}>✕</button>
+        </div>
+      )}
       <div className="home-header">
         <h1>📝 刷题</h1>
         <p>导入题库，开始刷题</p>
