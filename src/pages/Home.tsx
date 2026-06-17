@@ -9,6 +9,7 @@ export default function Home() {
   const [dragover, setDragover] = useState(false)
   const [loading, setLoading] = useState(false)
   const [updateVer, setUpdateVer] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState(false)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -142,8 +143,7 @@ export default function Home() {
 
     if (newer(latestVer, cur || '0')) {
       if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
-        localStorage.setItem('quiz_app_ver', latestVer)
-        window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
+        handleDownload(latestVer)
       }
     } else {
       alert(`已是最新 (v${latestVer})`)
@@ -156,6 +156,18 @@ export default function Home() {
     if (file) handleFile(file)
   }
 
+  function handleDownload(ver: string) {
+    setDownloading(true)
+    localStorage.setItem('quiz_app_ver', ver)
+    window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
+    // APK 只有 ~130KB，3 秒足够下完
+    setTimeout(() => {
+      setDownloading(false)
+      setUpdateVer(null)
+      alert('下载完成，请安装新版本')
+    }, 3000)
+  }
+
   async function handleDelete(bankId: string, title: string) {
     if (!confirm(`确定删除题库「${title}」？`)) return
     await deleteBank(bankId); await refresh()
@@ -166,11 +178,11 @@ export default function Home() {
       {updateVer && (
         <div className="update-banner">
           <span>发现新版本 v{updateVer}！</span>
-          <button className="btn btn-sm" onClick={() => {
-            localStorage.setItem('quiz_app_ver', updateVer)
-            window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
-            setUpdateVer(null)
-          }}>下载更新</button>
+          {downloading ? (
+            <span className="download-status">⏳ 下载中...</span>
+          ) : (
+            <button className="btn btn-sm" onClick={() => handleDownload(updateVer)}>下载更新</button>
+          )}
           <button className="btn btn-sm btn-outline" onClick={() => setUpdateVer(null)}>✕</button>
         </div>
       )}
