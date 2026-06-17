@@ -8,6 +8,15 @@ export default defineConfig(({ mode }) => {
     base: './',
     plugins: [
       react(),
+      // APK 模式：去掉 crossorigin（file:// 不支持）和 manifest link（会触发无用请求）
+      ...(isApk ? [{
+        name: 'apk-html-transform',
+        transformIndexHtml(html: string) {
+          return html
+            .replace(/\s+crossorigin/g, '')
+            .replace(/<link rel="manifest"[^>]*>/g, '')
+        },
+      }] : []),
       ...(isApk ? [] : [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.svg'],
