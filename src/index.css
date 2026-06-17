@@ -263,7 +263,7 @@ body {
   color: var(--primary);
   background: var(--primary-light);
 }
-.drop-zone input[type="file"] { display: none; }
+/* file input hidden visually (not display:none — breaks WebView click forwarding) */
 
 /* ---------- 完成弹窗 ---------- */
 .modal-overlay {

@@ -168,9 +168,12 @@ export default function Home() {
     }, 3000)
   }
 
-  async function handleDelete(bankId: string, title: string) {
-    if (!confirm(`确定删除题库「${title}」？`)) return
-    await deleteBank(bankId); await refresh()
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+
+  async function doDelete() {
+    if (!deleteTarget) return
+    await deleteBank(deleteTarget.id); await refresh()
+    setDeleteTarget(null)
   }
 
   return (
@@ -192,19 +195,21 @@ export default function Home() {
         <button className="btn btn-sm btn-outline mt-8" onClick={checkUpdate}>🔄 检查更新</button>
       </div>
 
-      <label
+      <div
         className={`drop-zone ${dragover ? 'dragover' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragover(true) }}
         onDragLeave={() => setDragover(false)} onDrop={handleDrop}
+        style={{ position: 'relative', overflow: 'hidden' }}
       >
         <div style={{ fontSize: '2rem', marginBottom: 8 }}>📂</div>
         <div>{loading ? '导入中...' : '点击选择 .md 题库文件'}</div>
         <input ref={fileInputRef} type="file" accept=".md,.txt,.text/*" disabled={loading}
+          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
           onChange={(e) => {
             if ((window as any).__hermesFilePending) { delete (window as any).__hermesFilePending; e.target.value = ''; return }
             const file = e.target.files?.[0]; if (file) handleFile(file); e.target.value = ''
           }} />
-      </label>
+      </div>
 
       {banks.length === 0 ? (
         <div className="empty-state">
@@ -220,10 +225,24 @@ export default function Home() {
             <button className="btn btn-outline btn-sm" onClick={() => navigate(`/short-answer/${bank.id}`)}>简答题</button>
             <button className="btn btn-outline btn-sm" onClick={() => navigate(`/wrong/${bank.id}`)}>错题本</button>
             <button className="btn btn-outline btn-sm" style={{ color: '#dc2626', borderColor: '#dc2626' }}
-              onClick={() => handleDelete(bank.id, bank.title)}>删除</button>
+              onClick={() => setDeleteTarget({ id: bank.id, title: bank.title })}>删除</button>
           </div>
         </div>
       ))}
+
+      {/* 删除确认弹窗 */}
+      {deleteTarget && (
+        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>确认删除</h3>
+            <p style={{ margin: '12px 0', color: '#64748b' }}>确定删除题库「{deleteTarget.title}」？此操作不可恢复。</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
+              <button className="btn btn-outline" onClick={() => setDeleteTarget(null)}>取消</button>
+              <button className="btn btn-danger" onClick={doDelete}>确认删除</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

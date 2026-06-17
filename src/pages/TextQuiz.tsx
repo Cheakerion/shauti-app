@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getQuestionsByBank, saveAnswerRecord, db } from '../db'
-import type { Question, QuestionType, AnswerRecord } from '../types'
+import type { Question, AnswerRecord } from '../types'
 import ProgressBar from '../components/ProgressBar'
 
 interface Props { qType: 'explain' | 'short_answer' }
@@ -14,7 +14,6 @@ export default function TextQuiz({ qType }: Props) {
 
   const [allQuestions, setAllQuestions] = useState<Question[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [records, setRecords] = useState<AnswerRecord[]>([])
   const [showComplete, setShowComplete] = useState(false)
   const [startTime, setStartTime] = useState(Date.now())
@@ -33,7 +32,7 @@ export default function TextQuiz({ qType }: Props) {
   useEffect(() => {
     if (!bankId) return
     getQuestionsByBank(bankId).then((qs) => {
-      const filtered = qs.filter((q) => (q as any).type === qType || (!('type' in q) && qType === 'choice'))
+      const filtered = qs.filter((q) => (q as any).type === qType)
       setAllQuestions(filtered)
 
       const saved = localStorage.getItem(sessionKey)
@@ -86,7 +85,6 @@ export default function TextQuiz({ qType }: Props) {
   function fullRestart() {
     localStorage.removeItem(sessionKey)
     setCurrentIndex(0)
-    setSelectedAnswer(null)
     setRecords([])
     setHistoryAnswers(new Map())
     setSelfEvals(new Map())
