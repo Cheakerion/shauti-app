@@ -87,11 +87,12 @@ export default function Home() {
       }
       return
     }
-    // Fallback: browser fetch
+    // Fallback: browser fetch（jsDelivr 有缓存，加时间戳破缓存）
     try {
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), 10000)
-      const res = await fetch('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json', { signal: ctrl.signal })
+      const url = `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${Date.now()}`
+      const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
       clearTimeout(timer)
       const latestVer = (await res.json()).version
       const cur = localStorage.getItem('quiz_app_ver') || ''

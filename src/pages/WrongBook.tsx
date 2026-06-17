@@ -273,7 +273,7 @@ export default function WrongBook() {
                     setSelectedAnswer(null)
                     setShowGrid(false)
                   }}>
-                    {q.index}
+                    {i + 1}
                   </button>
                 )
               })}

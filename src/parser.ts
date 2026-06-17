@@ -115,6 +115,8 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
 
     const options: Option[] = [];
     let currentAnswer = '';
+    let currentExplanation = '';
+    let inExplanation = false;
     i++;
 
     while (i < lines.length) {
@@ -133,9 +135,22 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
         i++; continue;
       }
 
+      // 解析（支持多行，支持 WeChat 粗体格式）
+      const expMatch = t.match(/^(?:\*\*)?解析\s*[:：](?:\*\*)?\s*(.*)/);
+      if (expMatch) {
+        inExplanation = true;
+        currentExplanation = expMatch[1].trim();
+        i++; continue;
+      }
+      if (inExplanation && t) {
+        currentExplanation += '\n' + t;
+        i++; continue;
+      }
+
       const optMatch = t.match(/^([A-E])\s*[.、)]\s*(.+)/);
       if (optMatch) {
         options.push({ label: optMatch[1], text: optMatch[2].trim() });
+        inExplanation = false; // 解析通常在选项后，若后又出现选项则停止解析收集
         i++; continue;
       }
 
@@ -145,7 +160,10 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
 
     const stem = stemLines.join('\n').trim();
     if (stem && options.length > 0) {
-      results.push({ index: 0, localNum, stem, options, answer: currentAnswer } as any);
+      results.push({
+        index: 0, localNum, stem, options, answer: currentAnswer,
+        explanation: currentExplanation || undefined,
+      } as any);
     }
   }
 
