@@ -164,8 +164,8 @@ export default function Home() {
     if (latestVer && latestVer !== cur) {
       if (confirm(`发现新版本 ${latestVer}\n是否下载更新？`)) {
         localStorage.setItem('quiz_app_ver', latestVer)
-        // Direct download from GitHub releases
-        window.open('https://github.com/Cheakerion/shauti-app/releases/latest/download/default.apk', '_blank')
+        // Download from jsDelivr CDN (accessible in China)
+        window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
       }
     } else {
       alert(latestVer ? '已是最新版本' : '未检测到更新\n连上电脑 WiFi 可快速更新')
