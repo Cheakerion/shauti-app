@@ -65,31 +65,32 @@ export default function Home() {
   async function checkUpdate() {
     const ctrl = new AbortController()
     const timer = setTimeout(() => ctrl.abort(), 15000)
-    const cacheBust = '?t=' + Date.now()
-    let latestVer = '', lastErr = ''
+    let latestVer = '', lastErr = '', code = 0
 
-    // Try raw GitHub first (most reliable in China)
     const urls = [
-      `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json${cacheBust}`,
-      `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json${cacheBust}`,
+      'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json',
+      'https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json',
     ]
     for (const url of urls) {
       try {
-        const res = await fetch(url, { signal: ctrl.signal })
+        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-cache' })
+        code = res.status
         if (res.ok) { latestVer = (await res.json()).version || ''; break }
-        lastErr = url.slice(8, 40) + ' HTTP' + res.status
-      } catch (e: any) { lastErr = e.message?.slice(0, 40) || String(e).slice(0, 40) }
+        lastErr = 'HTTP ' + res.status
+      } catch (e: any) { lastErr = (e.message || String(e)).slice(0, 60); code = 0 }
     }
     const cur = localStorage.getItem('quiz_app_ver') || ''
+    clearTimeout(timer)
+
     if (latestVer && latestVer !== cur) {
-      if (confirm(`发现新版本 ${latestVer} (当前${cur||'无'})\n是否下载？`)) {
+      if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
         localStorage.setItem('quiz_app_ver', latestVer)
         window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
       }
-    } else {
-      alert(latestVer ? `已是最新 (${latestVer})` : `未检测到更新\n${lastErr}`)
+      return
     }
-    clearTimeout(timer)
+    if (latestVer) { alert(`已是最新 (v${latestVer})`); return }
+    alert(`更新失败 code=${code} err=${lastErr}`)
   }
 
   function handleDrop(e: React.DragEvent) {
