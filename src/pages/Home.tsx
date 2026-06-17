@@ -143,27 +143,30 @@ export default function Home() {
     }
   }
 
-  // Check for app update
+  // Check for app update from GitHub Releases
   async function checkUpdate() {
-    if (!serverIP.trim()) {
-      alert('请先输入电脑 IP')
-      return
-    }
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 5000)
+    const timer = setTimeout(() => controller.abort(), 10000)
     try {
-      const url = `http://${serverIP.trim()}:8888/api/version`
+      const url = 'https://api.github.com/repos/Cheakerion/shauti-app/releases/latest'
       const res = await fetch(url, { signal: controller.signal })
       const info = await res.json()
-      if (info.apkAvailable) {
-        if (confirm(`发现新版本\n构建时间: ${info.buildDate}\n大小: ${(info.apkSize/1024).toFixed(0)}KB\n\n是否下载更新？`)) {
-          window.open(`http://${serverIP.trim()}:8888/api/apk`, '_blank')
+      const apk = info.assets?.find((a: any) => a.name.endsWith('.apk'))
+      if (apk) {
+        const currentVer = localStorage.getItem('quiz_app_version') || ''
+        if (info.tag_name !== currentVer) {
+          if (confirm(`发现新版本 ${info.tag_name}\n${(apk.size/1024).toFixed(0)}KB\n\n是否下载更新？`)) {
+            localStorage.setItem('quiz_app_version', info.tag_name)
+            window.open(apk.browser_download_url, '_blank')
+          }
+        } else {
+          alert('已是最新版本 (' + currentVer + ')')
         }
       } else {
         alert('已是最新版本')
       }
     } catch (e) {
-      alert('检查更新失败：无法连接到电脑')
+      alert('检查更新失败，请检查网络连接')
     } finally {
       clearTimeout(timer)
     }
