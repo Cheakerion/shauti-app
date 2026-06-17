@@ -6,6 +6,8 @@ import ProgressBar from '../components/ProgressBar'
 
 interface Props { qType: 'explain' | 'short_answer' }
 
+type PlayMode = 'quick' | 'normal' | 'memorize'
+
 const LABEL: Record<string, string> = { explain: '名词解释', short_answer: '简答题' }
 
 export default function TextQuiz({ qType }: Props) {
@@ -14,6 +16,7 @@ export default function TextQuiz({ qType }: Props) {
 
   const [allQuestions, setAllQuestions] = useState<Question[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [playMode, setPlayMode] = useState<PlayMode>('normal')
   const [records, setRecords] = useState<AnswerRecord[]>([])
   const [showComplete, setShowComplete] = useState(false)
   const [startTime, setStartTime] = useState(Date.now())
@@ -24,10 +27,14 @@ export default function TextQuiz({ qType }: Props) {
   const [answerRevealed, setAnswerRevealed] = useState(false)
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set())
   const [showQuestionList, setShowQuestionList] = useState(false)
+  const [autoAdvancing, setAutoAdvancing] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
+  const autoAdvTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const sessionKey = `quiz_session_${bankId}_${qType}`
+
+  useEffect(() => { return () => { if (autoAdvTimer.current) clearTimeout(autoAdvTimer.current) } }, [])
 
   useEffect(() => {
     if (!bankId) return
@@ -40,6 +47,7 @@ export default function TextQuiz({ qType }: Props) {
         try {
           const s = JSON.parse(saved)
           setCurrentIndex(s.currentIndex || 0)
+          setPlayMode(s.playMode || 'normal')
           setShuffledIndices(s.shuffledIndices || [])
           setStartTime(s.startTime || Date.now())
           if (s.historyAnswers) setHistoryAnswers(new Map(Object.entries(s.historyAnswers)))
@@ -60,14 +68,13 @@ export default function TextQuiz({ qType }: Props) {
 
   useEffect(() => {
     if (!bankId || allQuestions.length === 0) return
-    const session = {
-      currentIndex, shuffledIndices, startTime,
+    localStorage.setItem(sessionKey, JSON.stringify({
+      currentIndex, playMode, shuffledIndices, startTime,
       historyAnswers: Object.fromEntries(historyAnswers),
       selfEvals: Object.fromEntries(selfEvals),
       revealedIds: [...revealedIds],
-    }
-    localStorage.setItem(sessionKey, JSON.stringify(session))
-  }, [currentIndex, historyAnswers, selfEvals, shuffledIndices, startTime, bankId, allQuestions.length])
+    }))
+  }, [currentIndex, playMode, historyAnswers, selfEvals, shuffledIndices, startTime, bankId, allQuestions.length])
 
   const question = useMemo(() => {
     if (allQuestions.length === 0) return null
@@ -77,10 +84,14 @@ export default function TextQuiz({ qType }: Props) {
 
   useEffect(() => {
     if (question) {
-      const revealed = revealedIds.has(question.id)
-      setAnswerRevealed(revealed)
+      if (playMode === 'memorize') {
+        setAnswerRevealed(true)
+        setRevealedIds((prev) => new Set(prev).add(question.id))
+      } else {
+        setAnswerRevealed(revealedIds.has(question.id))
+      }
     }
-  }, [currentIndex, shuffledIndices, question?.id, revealedIds])
+  }, [currentIndex, shuffledIndices, question?.id, playMode])
 
   function fullRestart() {
     localStorage.removeItem(sessionKey)
@@ -92,6 +103,7 @@ export default function TextQuiz({ qType }: Props) {
     setAnswerRevealed(false)
     setShowComplete(false)
     setAllDone(false)
+    setAutoAdvancing(false)
     setStartTime(Date.now())
     const indices = Array.from({ length: allQuestions.length }, (_, i) => i)
     for (let i = indices.length - 1; i > 0; i--) {
@@ -125,7 +137,30 @@ export default function TextQuiz({ qType }: Props) {
     }
     setRecords((prev) => [...prev, record])
     await saveAnswerRecord(record)
-  }, [question])
+
+    // Quick mode: auto-advance if self-evaluated as correct
+    if (playMode === 'quick' && isCorrect) {
+      setAutoAdvancing(true)
+      autoAdvTimer.current = setTimeout(() => { nextQuestion() }, 700)
+    }
+  }, [question, playMode])
+
+  function prevQuestion() {
+    if (autoAdvTimer.current) { clearTimeout(autoAdvTimer.current); autoAdvTimer.current = null }
+    setAutoAdvancing(false)
+    if (currentIndex > 0) setCurrentIndex((i) => i - 1)
+  }
+
+  function nextQuestion() {
+    if (autoAdvTimer.current) { clearTimeout(autoAdvTimer.current); autoAdvTimer.current = null }
+    setAutoAdvancing(false)
+    if (currentIndex >= allQuestions.length - 1) {
+      setAllDone(true)
+      setShowComplete(true)
+      return
+    }
+    setCurrentIndex((i) => i + 1)
+  }
 
   function jumpToQuestion(qIndex: number) {
     setCurrentIndex(qIndex)
@@ -145,19 +180,6 @@ export default function TextQuiz({ qType }: Props) {
     }
   }, [currentIndex, allQuestions.length, allDone])
 
-  function prevQuestion() {
-    if (currentIndex > 0) setCurrentIndex((i) => i - 1)
-  }
-
-  function nextQuestion() {
-    if (currentIndex >= allQuestions.length - 1) {
-      setAllDone(true)
-      setShowComplete(true)
-      return
-    }
-    setCurrentIndex((i) => i + 1)
-  }
-
   const stats = useMemo(() => {
     const total = records.length
     const correct = records.filter((r) => r.isCorrect).length
@@ -168,11 +190,10 @@ export default function TextQuiz({ qType }: Props) {
     const map = new Map<string, boolean | null>()
     for (const q of allQuestions) {
       if (selfEvals.has(q.id)) map.set(q.id, selfEvals.get(q.id)!)
-      else if (revealedIds.has(q.id)) map.set(q.id, null) // revealed, not yet self-evaled
       else map.set(q.id, null)
     }
     return map
-  }, [allQuestions, selfEvals, revealedIds])
+  }, [allQuestions, selfEvals])
 
   // ---- 完成页 ----
   if (showComplete) {
@@ -212,7 +233,20 @@ export default function TextQuiz({ qType }: Props) {
         <button className="btn btn-sm btn-outline" onClick={() => setShowQuestionList(true)}>📋</button>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+      {/* 快速/正常/背题 */}
+      <div className="mode-toggle" style={{ marginBottom: 12 }}>
+        <button className={playMode === 'quick' ? 'active' : ''}
+          onClick={() => { setPlayMode('quick') }}>
+          ⚡快速</button>
+        <button className={playMode === 'normal' ? 'active' : ''}
+          onClick={() => { setPlayMode('normal') }}>
+          📝正常</button>
+        <button className={playMode === 'memorize' ? 'active' : ''}
+          onClick={() => { setPlayMode('memorize') }}>
+          📖背题</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
         <div style={{ flex: 1 }} />
         <button className="btn btn-sm btn-outline" onClick={fullRestart}>重新开始</button>
         <button className="btn btn-sm btn-outline" style={{ color: '#dc2626', borderColor: '#dc2626' }} onClick={clearAndRestart}>清除记录</button>
@@ -229,46 +263,41 @@ export default function TextQuiz({ qType }: Props) {
         <div className="card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{ touchAction: 'pan-y' }}>
           <div className="stem-text">{question.stem}</div>
 
-          {/* 查看答案 或 已展示答案 */}
-          {!answerRevealed ? (
-            <button className="btn btn-block mt-16" onClick={revealAnswer}>
-              查看答案
-            </button>
-          ) : (
+          {answerRevealed ? (
             <>
               <div className="explanation" style={{ marginTop: 12 }}>
                 <strong>参考答案：</strong>
                 <p style={{ marginTop: 4 }}>{question.answer}</p>
               </div>
-
               {question.explanation && (
                 <div className="explanation" style={{ marginTop: 8 }}>
                   <strong>解析：</strong>{question.explanation}
                 </div>
               )}
-
-              {!isSelfEvalDone ? (
+              {!isSelfEvalDone && playMode !== 'memorize' ? (
                 <div className="self-eval-buttons" style={{ marginTop: 12, display: 'flex', gap: 12 }}>
-                  <button className="btn self-eval-btn correct" onClick={() => handleSelfEval(true)}>
-                    我答对了
-                  </button>
-                  <button className="btn self-eval-btn wrong" onClick={() => handleSelfEval(false)}>
-                    我答错了
-                  </button>
+                  <button className="btn self-eval-btn correct" onClick={() => handleSelfEval(true)}>我答对了</button>
+                  <button className="btn self-eval-btn wrong" onClick={() => handleSelfEval(false)}>我答错了</button>
                 </div>
               ) : (
                 <div style={{ marginTop: 12, fontWeight: 600, color: selfEvals.get(question.id) ? '#16a34a' : '#dc2626' }}>
-                  {selfEvals.get(question.id) ? '自评正确' : '自评错误'}
+                  {isSelfEvalDone ? (selfEvals.get(question.id) ? '自评正确' : '自评错误') : '📖 背题模式'}
                 </div>
               )}
+              {autoAdvancing && (
+                <div style={{ marginTop: 8, color: '#16a34a', fontSize: '0.85rem' }}>✓ 自动跳转下一题...</div>
+              )}
             </>
+          ) : (
+            <button className="btn btn-block mt-16" onClick={revealAnswer}>查看答案</button>
           )}
         </div>
       )}
 
       <div className="quiz-actions">
         <button className="btn btn-outline" disabled={currentIndex === 0} onClick={prevQuestion}>← 上一题</button>
-        <button className="btn" style={{ flex: 1 }} disabled={answerRevealed && !isSelfEvalDone} onClick={nextQuestion}>
+        <button className="btn" style={{ flex: 1 }} disabled={playMode !== 'memorize' && answerRevealed && !isSelfEvalDone}
+          onClick={nextQuestion}>
           {allDone ? '查看成绩' : currentIndex >= allQuestions.length - 1 ? '完成' : '下一题 →'}
         </button>
       </div>
@@ -282,7 +311,7 @@ export default function TextQuiz({ qType }: Props) {
                 const status = questionStatus.get(q.id)
                 let dotCls = 'q-dot'
                 if (status === true) dotCls += ' q-correct'
-                else if (status === false && revealedIds.has(q.id)) dotCls += ' q-wrong'
+                else if (status === false) dotCls += ' q-wrong'
                 if (i === currentIndex) dotCls += ' q-current'
                 return (
                   <button key={i} className={dotCls} onClick={() => jumpToQuestion(i)}>

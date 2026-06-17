@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getAllBanks, deleteBank, saveBank } from '../db'
+import { getAllBanks, deleteBank, saveBank, getBankTypes } from '../db'
 import { parseMarkdownBank, generateId } from '../parser'
 import type { QuestionBank, Question } from '../types'
 
 export default function Home() {
   const [banks, setBanks] = useState<QuestionBank[]>([])
+  const [bankTypes, setBankTypes] = useState<Record<string, string[]>>({})
   const [dragover, setDragover] = useState(false)
   const [loading, setLoading] = useState(false)
   const [updateVer, setUpdateVer] = useState<string | null>(null)
@@ -14,7 +15,14 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(async () => {
-    setBanks(await getAllBanks())
+    const list = await getAllBanks()
+    setBanks(list)
+    // Load types for all banks
+    const types: Record<string, string[]> = {}
+    for (const b of list) {
+      types[b.id] = await getBankTypes(b.id)
+    }
+    setBankTypes(types)
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
@@ -32,8 +40,8 @@ export default function Home() {
       const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
       clearTimeout(timer)
       const latestVer = (await res.json()).version
-      const cur = localStorage.getItem('quiz_app_ver') || ''
-      if (!cur && latestVer) localStorage.setItem('quiz_app_ver', latestVer)
+      let cur = localStorage.getItem('quiz_app_ver') || ''
+      if (!cur && latestVer) { localStorage.setItem('quiz_app_ver', latestVer); cur = latestVer }
       if (latestVer && newer(latestVer, cur || '0')) {
         setUpdateVer(latestVer)
       }
@@ -95,7 +103,7 @@ export default function Home() {
 
   async function checkUpdate() {
     const Android = (window as any).Android
-    const cur = localStorage.getItem('quiz_app_ver') || ''
+    let cur = localStorage.getItem('quiz_app_ver') || ''
 
     // 并行获取：Android 桥 + 浏览器 fetch，取最新的
     const candidates: (string | null)[] = [null, null]
@@ -139,7 +147,7 @@ export default function Home() {
     }
 
     if (!latestVer) { alert('更新失败: 无法获取版本信息'); return }
-    if (!cur && latestVer) localStorage.setItem('quiz_app_ver', latestVer)
+    if (!cur && latestVer) { localStorage.setItem('quiz_app_ver', latestVer); cur = latestVer }
 
     if (newer(latestVer, cur || '0')) {
       if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
@@ -174,6 +182,21 @@ export default function Home() {
     if (!deleteTarget) return
     await deleteBank(deleteTarget.id); await refresh()
     setDeleteTarget(null)
+  }
+
+  /** 根据题型返回开始刷题的路由 */
+  function getQuizRoute(bankId: string): string {
+    const types = bankTypes[bankId] || ['choice']
+    if (types.includes('explain')) return `/explain/${bankId}`
+    if (types.includes('short_answer')) return `/short-answer/${bankId}`
+    return `/quiz/${bankId}`
+  }
+
+  /** 题型对应的标签 */
+  function getTypeLabel(bankId: string): string {
+    const types = bankTypes[bankId] || ['choice']
+    const labels: Record<string, string> = { choice: '选择题', explain: '名词解释', short_answer: '简答题' }
+    return types.map(t => labels[t] || t).join('+')
   }
 
   return (
@@ -219,10 +242,9 @@ export default function Home() {
         <div className="card bank-card" key={bank.id}>
           <div className="bank-title">{bank.title}</div>
           <div className="bank-meta">{bank.fileName} · {bank.totalCount} 题</div>
+          <div className="bank-meta" style={{ marginTop: 4 }}>题型: {getTypeLabel(bank.id)}</div>
           <div className="bank-actions">
-            <button className="btn" onClick={() => navigate(`/quiz/${bank.id}`)}>开始刷题</button>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate(`/explain/${bank.id}`)}>名词解释</button>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate(`/short-answer/${bank.id}`)}>简答题</button>
+            <button className="btn" onClick={() => navigate(getQuizRoute(bank.id))}>开始刷题</button>
             <button className="btn btn-outline btn-sm" onClick={() => navigate(`/wrong/${bank.id}`)}>错题本</button>
             <button className="btn btn-outline btn-sm" style={{ color: '#dc2626', borderColor: '#dc2626' }}
               onClick={() => setDeleteTarget({ id: bank.id, title: bank.title })}>删除</button>

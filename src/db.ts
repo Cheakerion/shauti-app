@@ -63,6 +63,16 @@ export async function getQuestionCount(bankId: string): Promise<number> {
   return db.questions.where('bankId').equals(bankId).count();
 }
 
+/** 获取题库包含的题型 */
+export async function getBankTypes(bankId: string): Promise<string[]> {
+  const questions = await db.questions.where('bankId').equals(bankId).toArray();
+  const types = new Set<string>();
+  for (const q of questions) {
+    types.add((q as any).type || 'choice');
+  }
+  return [...types];
+}
+
 // ============================================================
 // 答题记录操作
 // ============================================================

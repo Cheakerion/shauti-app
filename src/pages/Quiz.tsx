@@ -4,6 +4,8 @@ import { getQuestionsByBank, saveAnswerRecord, db } from '../db'
 import type { Question, QuizMode, AnswerRecord } from '../types'
 import ProgressBar from '../components/ProgressBar'
 
+type PlayMode = 'quick' | 'normal' | 'memorize'
+
 export default function Quiz() {
   const { bankId } = useParams<{ bankId: string }>()
   const navigate = useNavigate()
@@ -11,6 +13,7 @@ export default function Quiz() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [mode, setMode] = useState<QuizMode>('sequential')
+  const [playMode, setPlayMode] = useState<PlayMode>('normal')
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [pendingAnswer, setPendingAnswer] = useState<string | null>(null)
   const [records, setRecords] = useState<AnswerRecord[]>([])
@@ -19,36 +22,31 @@ export default function Quiz() {
   const [shuffledIndices, setShuffledIndices] = useState<number[]>([])
   const [allDone, setAllDone] = useState(false)
   const [historyAnswers, setHistoryAnswers] = useState<Map<string, string>>(new Map())
-  const [confirmMode, setConfirmMode] = useState(false)
   const [showQuestionList, setShowQuestionList] = useState(false)
+  const [autoAdvancing, setAutoAdvancing] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
+  const autoAdvTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Save & restore quiz session
   const sessionKey = `quiz_session_${bankId}`
 
   useEffect(() => {
     if (!bankId) return
     getQuestionsByBank(bankId).then((qs) => {
       setQuestions(qs)
-
-      // Try to restore saved session
       const saved = localStorage.getItem(sessionKey)
       if (saved) {
         try {
           const s = JSON.parse(saved)
           setCurrentIndex(s.currentIndex || 0)
           setMode(s.mode || 'sequential')
+          setPlayMode(s.playMode || 'normal')
           setShuffledIndices(s.shuffledIndices || [])
           setStartTime(s.startTime || Date.now())
-          if (s.historyAnswers) {
-            setHistoryAnswers(new Map(Object.entries(s.historyAnswers)))
-          }
+          if (s.historyAnswers) setHistoryAnswers(new Map(Object.entries(s.historyAnswers)))
           return
         } catch (e) {}
       }
-
-      // No saved session: new shuffle
       const indices = Array.from({ length: qs.length }, (_, i) => i)
       for (let i = indices.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -58,24 +56,20 @@ export default function Quiz() {
     })
   }, [bankId])
 
-  // Save session on every relevant state change
   useEffect(() => {
     if (!bankId || questions.length === 0) return
-    const session = {
-      currentIndex,
-      mode,
-      shuffledIndices,
-      startTime,
+    localStorage.setItem(sessionKey, JSON.stringify({
+      currentIndex, mode, playMode, shuffledIndices, startTime,
       historyAnswers: Object.fromEntries(historyAnswers),
-    }
-    localStorage.setItem(sessionKey, JSON.stringify(session))
-  }, [currentIndex, mode, historyAnswers, shuffledIndices, startTime, bankId, questions.length])
+    }))
+  }, [currentIndex, mode, playMode, historyAnswers, shuffledIndices, startTime, bankId, questions.length])
+
+  // Cleanup auto-advance timer on unmount
+  useEffect(() => { return () => { if (autoAdvTimer.current) clearTimeout(autoAdvTimer.current) } }, [])
 
   const question = useMemo(() => {
     if (questions.length === 0) return null
-    const idx = mode === 'sequential'
-      ? currentIndex
-      : shuffledIndices[currentIndex]
+    const idx = mode === 'sequential' ? currentIndex : shuffledIndices[currentIndex]
     return questions[idx] || null
   }, [questions, currentIndex, mode, shuffledIndices])
 
@@ -84,10 +78,10 @@ export default function Quiz() {
       const existing = historyAnswers.get(question.id)
       setSelectedAnswer(existing || null)
       setPendingAnswer(null)
+      setAutoAdvancing(false)
     }
   }, [currentIndex, mode, shuffledIndices, question?.id])
 
-  // 每道题的答题状态：null=未答, true=正确, false=错误
   const questionStatus = useMemo(() => {
     const map = new Map<string, boolean | null>()
     for (const [qid, ans] of historyAnswers) {
@@ -106,6 +100,7 @@ export default function Quiz() {
     setHistoryAnswers(new Map())
     setShowComplete(false)
     setAllDone(false)
+    setAutoAdvancing(false)
     setStartTime(Date.now())
     const indices = Array.from({ length: questions.length }, (_, i) => i)
     for (let i = indices.length - 1; i > 0; i--) {
@@ -123,31 +118,8 @@ export default function Quiz() {
     fullRestart()
   }
 
-  const handleSelect = useCallback(async (answer: string) => {
-    if (!question) return
-    if (historyAnswers.has(question.id)) return
-
-    if (confirmMode) {
-      setPendingAnswer(answer)
-    } else {
-      // 即时模式：直接提交
-      setSelectedAnswer(answer)
-      setPendingAnswer(null)
-      const isCorrect = answer === question.answer
-      const record: AnswerRecord = {
-        questionId: question.id, bankId: question.bankId,
-        userAnswer: answer, isCorrect, timestamp: Date.now(),
-      }
-      setRecords((prev) => [...prev, record])
-      setHistoryAnswers((prev) => new Map(prev).set(question.id, answer))
-      await saveAnswerRecord(record)
-    }
-  }, [question, historyAnswers, confirmMode])
-
-  const submitAnswer = useCallback(async () => {
-    if (!question || !pendingAnswer) return
-    if (historyAnswers.has(question.id)) return
-    const answer = pendingAnswer
+  const submitAnswer = useCallback(async (answer: string) => {
+    if (!question || historyAnswers.has(question.id)) return
     setSelectedAnswer(answer)
     setPendingAnswer(null)
     const isCorrect = answer === question.answer
@@ -158,14 +130,36 @@ export default function Quiz() {
     setRecords((prev) => [...prev, record])
     setHistoryAnswers((prev) => new Map(prev).set(question.id, answer))
     await saveAnswerRecord(record)
-  }, [question, pendingAnswer, historyAnswers])
+
+    // Quick mode: auto-advance on correct
+    if (playMode === 'quick' && isCorrect) {
+      setAutoAdvancing(true)
+      autoAdvTimer.current = setTimeout(() => { nextQuestion() }, 700)
+    }
+  }, [question, historyAnswers, playMode])
+
+  const handleSelect = useCallback(async (answer: string) => {
+    if (!question || historyAnswers.has(question.id)) return
+
+    if (playMode === 'quick') {
+      // Quick: instant submit + auto-advance
+      await submitAnswer(answer)
+    } else if (playMode === 'normal') {
+      // Normal: confirm then submit
+      if (pendingAnswer === answer) {
+        await submitAnswer(answer)
+      } else {
+        setPendingAnswer(answer)
+      }
+    }
+    // memorize: no clicking
+  }, [question, historyAnswers, playMode, pendingAnswer, submitAnswer])
 
   function jumpToQuestion(qIndex: number) {
     setCurrentIndex(qIndex)
     setShowQuestionList(false)
   }
 
-  // Swipe navigation
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
@@ -180,10 +174,14 @@ export default function Quiz() {
   }, [currentIndex, questions.length, allDone])
 
   function prevQuestion() {
+    if (autoAdvTimer.current) { clearTimeout(autoAdvTimer.current); autoAdvTimer.current = null }
+    setAutoAdvancing(false)
     if (currentIndex > 0) setCurrentIndex((i) => i - 1)
   }
 
   function nextQuestion() {
+    if (autoAdvTimer.current) { clearTimeout(autoAdvTimer.current); autoAdvTimer.current = null }
+    setAutoAdvancing(false)
     if (currentIndex >= questions.length - 1) {
       setAllDone(true)
       setShowComplete(true)
@@ -226,45 +224,53 @@ export default function Quiz() {
     )
   }
 
-  // ---- 刷题主界面 ----
+  const answered = question ? historyAnswers.has(question.id) : false
+
   return (
     <div>
-      {/* 导航栏 */}
       <div className="navbar">
         <a className="back" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>← 返回</a>
         <span className="title">刷题 ({currentIndex + 1}/{questions.length})</span>
         <button className="btn btn-sm btn-outline" onClick={() => setShowQuestionList(true)}>📋</button>
       </div>
 
-      {/* 模式切换 */}
+      {/* 顺序/随机 */}
       <div className="mode-toggle">
-        <button className={mode === 'sequential' ? 'active' : ''} onClick={() => {
-          setMode('sequential'); setCurrentIndex(0); setSelectedAnswer(null)
-        }}>顺序刷题</button>
-        <button className={mode === 'random' ? 'active' : ''} onClick={() => {
-          setMode('random'); setCurrentIndex(0); setSelectedAnswer(null)
-        }}>随机刷题</button>
+        <button className={mode === 'sequential' ? 'active' : ''}
+          onClick={() => { setMode('sequential'); setCurrentIndex(0); setSelectedAnswer(null) }}>
+          顺序刷题</button>
+        <button className={mode === 'random' ? 'active' : ''}
+          onClick={() => { setMode('random'); setCurrentIndex(0); setSelectedAnswer(null) }}>
+          随机刷题</button>
       </div>
 
-      {/* 答题模式 + 重置 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
-        <label style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={confirmMode} onChange={(e) => setConfirmMode(e.target.checked)} />
-          确认后提交
-        </label>
+      {/* 快速/正常/背题 */}
+      <div className="mode-toggle" style={{ marginBottom: 12 }}>
+        <button className={playMode === 'quick' ? 'active' : ''}
+          onClick={() => { setPlayMode('quick'); setPendingAnswer(null) }}>
+          ⚡快速</button>
+        <button className={playMode === 'normal' ? 'active' : ''}
+          onClick={() => { setPlayMode('normal'); setPendingAnswer(null) }}>
+          📝正常</button>
+        <button className={playMode === 'memorize' ? 'active' : ''}
+          onClick={() => { setPlayMode('memorize'); setPendingAnswer(null) }}>
+          📖背题</button>
+      </div>
+
+      {/* 重置 */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
         <div style={{ flex: 1 }} />
         <button className="btn btn-sm btn-outline" onClick={fullRestart}>🔄 重新开始</button>
         <button className="btn btn-sm btn-outline" style={{ color: '#dc2626', borderColor: '#dc2626' }} onClick={clearAndRestart}>🗑 清除记录</button>
       </div>
 
-      <ProgressBar current={currentIndex + (selectedAnswer ? 1 : 0)} total={questions.length} />
+      <ProgressBar current={currentIndex + (answered ? 1 : 0)} total={questions.length} />
 
       <div className="quiz-stats">
         <span>正确 <span style={{ color: '#16a34a' }}>{stats.correct}</span> 错误 <span style={{ color: '#dc2626' }}>{stats.wrong}</span></span>
         <span className="count">{currentIndex + 1} / {questions.length}</span>
       </div>
 
-      {/* 题目卡片 */}
       {question && (
         <div className="card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
           style={{ touchAction: 'pan-y' }}>
@@ -273,21 +279,22 @@ export default function Quiz() {
           <div className="option-list">
             {question.options.map((opt) => {
               let cls = 'option-btn'
-              const answered = historyAnswers.has(question.id)
-              if (answered) {
-                // 已提交：显示正确/错误
-                if (opt.label === question.answer) cls += ' correct'
-                else if (opt.label === selectedAnswer && opt.label !== question.answer) cls += ' wrong'
-              } else if (confirmMode && pendingAnswer === opt.label) {
-                // 确认模式：待提交的高亮
+              const isCorrectOpt = opt.label === question.answer
+
+              if (playMode === 'memorize') {
+                // 背题模式：正确答案高亮，不可点击
+                if (isCorrectOpt) cls += ' correct'
+              } else if (answered) {
+                if (isCorrectOpt) cls += ' correct'
+                else if (opt.label === selectedAnswer && !isCorrectOpt) cls += ' wrong'
+              } else if (playMode === 'normal' && pendingAnswer === opt.label) {
                 cls += ' selected'
               }
+
               return (
-                <button
-                  key={opt.label}
-                  className={cls}
-                  onClick={() => handleSelect(opt.label)}
-                  disabled={answered}
+                <button key={opt.label} className={cls}
+                  onClick={() => playMode !== 'memorize' ? handleSelect(opt.label) : null}
+                  disabled={answered || playMode === 'memorize'}
                 >
                   <span className="label">{opt.label}.</span>
                   <span>{opt.text}</span>
@@ -296,33 +303,47 @@ export default function Quiz() {
             })}
           </div>
 
-          {/* 确认模式：提交按钮 */}
-          {confirmMode && pendingAnswer !== null && !historyAnswers.has(question.id) && (
-            <button className="btn btn-block mt-16" onClick={submitAnswer}>
-              提交答案
-            </button>
+          {/* 正常模式：再次点击提交 */}
+          {playMode === 'normal' && pendingAnswer !== null && !answered && (
+            <div style={{ marginTop: 8, fontSize: '0.85rem', color: '#64748b' }}>
+              已选 {pendingAnswer}，再次点击或点击下方按钮提交
+            </div>
           )}
 
-          {historyAnswers.has(question.id) && question.explanation && (
+          {answered && question.explanation && (
             <div className="explanation"><strong>解析：</strong>{question.explanation}</div>
           )}
-          {historyAnswers.has(question.id) && (
+          {answered && (
             <div style={{ marginTop: 12, fontWeight: 600, color: selectedAnswer === question.answer ? '#16a34a' : '#dc2626' }}>
               {selectedAnswer === question.answer ? '✅ 正确！' : `❌ 错误！正确答案是 ${question.answer}`}
             </div>
           )}
+          {autoAdvancing && (
+            <div style={{ marginTop: 8, color: '#16a34a', fontSize: '0.85rem' }}>✓ 自动跳转下一题...</div>
+          )}
+
+          {/* 背题模式：始终显示答案和解析 */}
+          {playMode === 'memorize' && (
+            <>
+              <div className="explanation" style={{ marginTop: 12 }}>
+                <strong>答案：</strong>{question.answer}
+              </div>
+              {question.explanation && (
+                <div className="explanation"><strong>解析：</strong>{question.explanation}</div>
+              )}
+            </>
+          )}
         </div>
       )}
 
-      {/* 操作按钮 */}
       <div className="quiz-actions">
         <button className="btn btn-outline" disabled={currentIndex === 0} onClick={prevQuestion}>← 上一题</button>
-        <button className="btn" style={{ flex: 1 }} onClick={nextQuestion}>
+        <button className="btn" style={{ flex: 1 }} disabled={answered ? false : playMode === 'normal' && pendingAnswer === null ? false : false} onClick={nextQuestion}>
           {allDone ? '查看成绩' : currentIndex >= questions.length - 1 ? '完成' : '下一题 →'}
         </button>
       </div>
 
-      {/* 题号选择弹窗 */}
+      {/* 题号网格 */}
       {showQuestionList && (
         <div className="modal-overlay" onClick={() => setShowQuestionList(false)}>
           <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
