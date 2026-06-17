@@ -1,6 +1,7 @@
 node_modules/
 dist/
 *.apk
+!releases/*.apk
 apk-build/
 android-sdk/
 debug_parser.*
