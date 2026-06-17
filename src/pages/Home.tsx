@@ -10,7 +10,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [debugInfo, setDebugInfo] = useState<string>('')
   const [serverIP, setServerIP] = useState(() => localStorage.getItem('quiz_server_ip') || '')
   const [showServer, setShowServer] = useState(false)
   const [serverFiles, setServerFiles] = useState<{name:string,size:number}[]>([])
@@ -47,14 +46,6 @@ export default function Home() {
     setLoading(true)
     try {
       const text = await file.text()
-
-      // Debug: if file seems WeChat-modified, show structure for analysis
-      const hasAnswer = /^##\s*答案\s*$/m.test(text)
-      const modules = text.split(/^(?=##\s+(?!答案)[^\n]+)/m).filter(s => s.trim())
-      if (hasAnswer && modules.length > 5) {
-        let dbg = `⚠ 微信修改过的文件 (${text.length}字符, ${modules.length}分段)\n\n前500字:\n${text.slice(0, 500)}\n\n后500字:\n${text.slice(-500)}`
-        setDebugInfo(dbg)
-      }
 
       const result = parseMarkdownBank(text)
 
@@ -143,42 +134,49 @@ export default function Home() {
     }
   }
 
-  // Check for app update from GitHub Releases
   async function checkUpdate() {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 10000)
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 8000)
+
+    // 1. Try local server (same WiFi)
+    if (serverIP.trim()) {
+      try {
+        const res = await fetch(`http://${serverIP.trim()}:8888/api/version`, { signal: ctrl.signal })
+        const info = await res.json()
+        if (info.apkAvailable) {
+          if (confirm(`发现新版本\n构建: ${new Date(info.buildDate).toLocaleString()}\n从电脑下载？`)) {
+            window.open(`http://${serverIP.trim()}:8888/api/apk`, '_blank')
+          }
+          clearTimeout(timer); return
+        }
+      } catch (e) {}
+    }
+
+    // 2. Try jsDelivr (CDN, works in China)
     try {
-      const url = 'https://api.github.com/repos/Cheakerion/shauti-app/releases/latest'
-      const res = await fetch(url, { signal: controller.signal })
+      const res = await fetch('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json', { signal: ctrl.signal })
       const info = await res.json()
-      const apk = info.assets?.find((a: any) => a.name.endsWith('.apk'))
-      if (apk) {
-        const currentVer = localStorage.getItem('quiz_app_version') || ''
-        if (info.tag_name !== currentVer) {
-          if (confirm(`发现新版本 ${info.tag_name}\n${(apk.size/1024).toFixed(0)}KB\n\n是否下载更新？`)) {
-            localStorage.setItem('quiz_app_version', info.tag_name)
-            window.open(apk.browser_download_url, '_blank')
+      if (info.version) {
+        const cur = localStorage.getItem('quiz_app_ver') || ''
+        if (info.version !== cur) {
+          if (confirm(`发现新版本 ${info.version}\n下载更新？`)) {
+            localStorage.setItem('quiz_app_ver', info.version)
+            window.open('https://github.com/Cheakerion/shauti-app/releases/latest', '_blank')
           }
         } else {
-          alert('已是最新版本 (' + currentVer + ')')
+          alert('已是最新版本')
         }
-      } else {
-        alert('已是最新版本')
+        clearTimeout(timer); return
       }
-    } catch (e) {
-      alert('检查更新失败，请检查网络连接')
-    } finally {
-      clearTimeout(timer)
-    }
+    } catch (e) {}
+
+    // 3. Direct GitHub releases page (usually accessible)
+    alert('请访问 GitHub 下载最新版：\nhttps://github.com/Cheakerion/shauti-app/releases')
+    clearTimeout(timer)
   }
 
   return (
     <div>
-      {debugInfo && (
-        <div className="card" style={{ background: '#fffbeb', border: '1px solid #f59e0b', fontSize: '0.75rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 300, overflow: 'auto' }}>
-          {debugInfo}
-        </div>
-      )}
       <div className="home-header">
         <h1>📝 刷题</h1>
         <p>导入你的题库，开始刷题</p>

@@ -1,69 +1,56 @@
 // ============================================================
-// Markdown 题库解析器
-// 支持两种格式：行内答案格式 和 末尾答案表格式
+// Markdown 题库解析器 — 兼容微信篡改
 // ============================================================
 import type { ParseResult, Option } from './types';
 
 export function parseMarkdownBank(markdown: string): ParseResult {
-  // 1. 提取标题
   let title = '未命名题库';
-  const frontmatterMatch = markdown.match(/^---\s*\ntitle:\s*(.+)/);
-  if (frontmatterMatch) {
-    title = frontmatterMatch[1].trim();
-  } else {
-    const h1Match = markdown.match(/^#\s+(.+)/m);
-    if (h1Match) title = h1Match[1].trim();
-  }
+  const fm = markdown.match(/^---\s*\ntitle:\s*(.+)/);
+  if (fm) title = fm[1].trim();
+  else { const h = markdown.match(/^#\s+(.+)/m); if (h) title = h[1].trim(); }
 
-  // 2. 判断格式：有没有末尾答案表？
-  if (/^##\s*答案\s*$/m.test(markdown)) {
-    return parseSplitFormat(markdown, title);
-  }
+  // WeChat-tolerant answer section detection
+  // Accept: ## 答案, ##答案, ## 答案:, ## Answers, etc.
+  const hasAnswerTable = /^##\s*答案/m.test(markdown);
+  if (hasAnswerTable) return parseSplitFormat(markdown, title);
   return parseInlineFormat(markdown, title);
 }
 
 // ============================================================
-// 格式 B：题目和答案分开（卫生学题库格式）
-// 按模块拆分，每个模块有独立的编号和答案表
+// 分离式格式（题目和答案分开）
+// 核心策略：用 ## 答案 作为锚点分割，忽略微信添加的垃圾标题
 // ============================================================
 function parseSplitFormat(markdown: string, title: string): ParseResult {
   const allQuestions: ParseResult['questions'] = [];
 
-  // 按 `## 答案` 分割。每个 ## 答案 后面紧跟一个答案表，
-  // 答案表之后（下一个 ## 答案之前）是该模块后的题目区。
-  // rawBlocks[0] = 第一个模块的题目（无前置答案表）
-  // rawBlocks[1..n-1] = ## 答案 + 答案表 + 可选：下一个模块的题目
-  const rawBlocks = markdown.split(/(?=^##\s*答案\s*$)/m);
+  // 按 ## 答案 分割（用更宽容的正则，兼容微信可能修改的格式）
+  const rawBlocks = markdown.split(/^(?=##\s*答案)/m);
 
   for (let i = 0; i < rawBlocks.length; i++) {
     const block = rawBlocks[i];
 
     if (i === 0) {
-      // 第一段：纯题目（第一个模块），答案表在 rawBlocks[1] 里
-      const answerTable = extractAnswerTable(rawBlocks[1] || '');
-      if (answerTable.size > 0) {
+      // 第一个模块的题目
+      const table = extractAnswerTable(rawBlocks[1] || '');
+      if (table.size > 0) {
         const qs = parseSplitQuestions(block);
         for (const q of qs) {
-          const ans = answerTable.get(q.localNum);
+          const ans = q.localNum != null ? table.get(q.localNum) : undefined;
           if (ans) { q.answer = ans; allQuestions.push(q); }
         }
       }
     } else {
-      // 后面的段：## 答案 + 答案表 + 可能的下个模块题目
       const content = block.replace(/^##\s*答案\s*/, '').trim();
-      // 找出答案表结束的位置（表格后面的空行之后）
-      const tableEndIdx = findTableEnd(content);
-      const answerTableText = content.slice(0, tableEndIdx);
-      const questionText = content.slice(tableEndIdx);
+      const tableEnd = findTableEnd(content);
+      const questionText = content.slice(tableEnd);
 
-      // 提取当前段的答案表
-      const answerTable = parseAnswerTable(answerTableText);
+      // Answer table for THIS module is in the NEXT rawBlock (i+1)
+      const table = extractAnswerTable(rawBlocks[i + 1] || '');
 
-      // 提取当前段后面的题目（下一个模块）
-      if (questionText.trim() && answerTable.size > 0) {
+      if (questionText.trim() && table.size > 0) {
         const qs = parseSplitQuestions(questionText);
         for (const q of qs) {
-          const ans = answerTable.get(q.localNum);
+          const ans = q.localNum != null ? table.get(q.localNum) : undefined;
           if (ans) { q.answer = ans; allQuestions.push(q); }
         }
       }
@@ -73,16 +60,14 @@ function parseSplitFormat(markdown: string, title: string): ParseResult {
   return { title, questions: allQuestions };
 }
 
-/** 找到答案表结束的位置（表格后面的空行或下一个标题之前） */
+/** 在文本中找到答案表格结束的位置 */
 function findTableEnd(text: string): number {
   const lines = text.split('\n');
   let lastTableLine = -1;
   for (let i = 0; i < lines.length; i++) {
-    if (/^\|/.test(lines[i])) lastTableLine = i;
+    if (/^\|\s*\d+\s*\|\s*[A-Ea-e]\s*\|/.test(lines[i])) lastTableLine = i;
   }
-  // 表格结束后的下一行
-  if (lastTableLine >= 0 && lastTableLine < lines.length - 1) {
-    // 找到表格后第一个非空行
+  if (lastTableLine >= 0) {
     for (let i = lastTableLine + 1; i < lines.length; i++) {
       if (lines[i].trim() !== '') {
         return lines.slice(0, i).join('\n').length;
@@ -90,11 +75,10 @@ function findTableEnd(text: string): number {
     }
     return text.length;
   }
-  // 如果没找到表格行，返回 0
   return 0;
 }
 
-/** 从文本中提取答案表 */
+/** 解析答案表格 */
 function parseAnswerTable(text: string): Map<number, string> {
   const map = new Map<number, string>();
   const lines = text.split('\n');
@@ -105,74 +89,63 @@ function parseAnswerTable(text: string): Map<number, string> {
   return map;
 }
 
-/** 提取纯答案表（用于 i===0 的情况，从 rawBlocks[1] 获取） */
+/** 从 rawBlocks[1] 提取答案表 */
 function extractAnswerTable(block: string): Map<number, string> {
   if (!block) return new Map();
   const content = block.replace(/^##\s*答案\s*/, '').trim();
-  const tableEndIdx = findTableEnd(content);
-  const tableText = content.slice(0, tableEndIdx);
-  return parseAnswerTable(tableText);
+  const idx = findTableEnd(content);
+  return parseAnswerTable(content.slice(0, idx));
 }
 
-interface RawQuestion {
-  localNum: number;
-  index: number;
-  stem: string;
-  options: Option[];
-  answer: string;
-}
-
-/** 从一段题目文本中解析所有题目 */
-function parseSplitQuestions(text: string): RawQuestion[] {
-  const results: RawQuestion[] = [];
-
-  // 支持两种题号格式：
-  // **1.** text  （环境/劳动模块）
-  // **1. text**  （营养模块，整行加粗）
-  // 也支持 **1** 不带点
-  const qStartRegex = /\*\*(\d+)[\.\s]/;
+/** 解析所有题目（跳过微信添加的标题/附录等） */
+function parseSplitQuestions(text: string): ParseResult['questions'] {
+  const results: ParseResult['questions'] = [];
   const lines = text.split('\n');
-
+  const qRegex = /\*\*(\d+)[\.\s]/;
   let i = 0;
+
   while (i < lines.length) {
-    const match = lines[i].match(qStartRegex);
-    if (!match) { i++; continue; }
+    if (!lines[i].match(qRegex)) { i++; continue; }
 
-    const num = parseInt(match[1]);
-    const textAfterNum = lines[i].replace(/^\*\*\d+\.?\*\?\*\s*/, '').replace(/\*\*\s*$/, '').trim();
-
+    const match = lines[i].match(qRegex)!;
+    const localNum = parseInt(match[1]);
+    const stemPart = lines[i].replace(/^\*\*\d+\.?\*?\*\s*/, '').replace(/\*\*\s*$/, '').trim();
     const stemLines: string[] = [];
-    if (textAfterNum) stemLines.push(textAfterNum);
+    if (stemPart) stemLines.push(stemPart);
 
     const options: Option[] = [];
+    let currentAnswer = '';
     i++;
 
-    // 收集题干和选项
     while (i < lines.length) {
       const line = lines[i];
-      // 下一题或分隔符 → 停止
-      if (line.match(qStartRegex)) break;
-      if (/^#{1,3}\s/.test(line)) { i++; continue; }
-      if (/^---+$/.test(line.trim())) { i++; continue; }
+      if (line.match(qRegex)) break; // next question
 
-      const optMatch = line.trim().match(/^([A-E])\s*[.、)]\s*(.+)/);
+      const t = line.trim();
+      if (/^#{1,3}\s/.test(t) || /^---+$/.test(t) || /^>/.test(t) || /^\|/.test(t)) {
+        i++; continue;
+      }
+
+      // WeChat inline answer: **答案：X** / **Answer: X**
+      const inlineAns = t.match(/^\*\*(?:(?:正确)?答案|Answer)\s*[:：]\s*([A-Ea-e]+)\s*\*\*$/i);
+      if (inlineAns) {
+        currentAnswer = inlineAns[1].toUpperCase();
+        i++; continue;
+      }
+
+      const optMatch = t.match(/^([A-E])\s*[.、)]\s*(.+)/);
       if (optMatch) {
         options.push({ label: optMatch[1], text: optMatch[2].trim() });
-        i++;
-        continue;
+        i++; continue;
       }
 
-      // 不是选项 → 属于题干
-      const t = line.trim();
-      if (t && !/^>/.test(t)) {
-        stemLines.push(t);
-      }
+      if (t) stemLines.push(t);
       i++;
     }
 
     const stem = stemLines.join('\n').trim();
     if (stem && options.length > 0) {
-      results.push({ localNum: num, index: 0, stem, options, answer: '' });
+      results.push({ index: 0, localNum, stem, options, answer: currentAnswer } as any);
     }
   }
 
@@ -180,35 +153,26 @@ function parseSplitQuestions(text: string): RawQuestion[] {
 }
 
 // ============================================================
-// 格式 A：题目内包含"正确答案:"（原有格式）
+// 行内答案格式
 // ============================================================
 function parseInlineFormat(markdown: string, title: string): ParseResult {
   const lines = markdown.split('\n');
   const questions: ParseResult['questions'] = [];
-
   let i = 0;
   if (lines[0]?.trim() === '---') {
     i = 1;
     while (i < lines.length && lines[i].trim() !== '---') i++;
     i++;
   }
-
   const blocks: string[][] = [];
-  let current: string[] = [];
+  let cur: string[] = [];
   for (; i < lines.length; i++) {
     if (/^---+$/.test(lines[i].trim())) {
-      if (current.length > 0) { blocks.push(current); current = []; }
-    } else {
-      current.push(lines[i]);
-    }
+      if (cur.length > 0) { blocks.push(cur); cur = []; }
+    } else { cur.push(lines[i]); }
   }
-  if (current.length > 0) blocks.push(current);
-
-  for (const block of blocks) {
-    const q = parseInlineBlock(block);
-    if (q) questions.push(q);
-  }
-
+  if (cur.length > 0) blocks.push(cur);
+  for (const b of blocks) { const q = parseInlineBlock(b); if (q) questions.push(q); }
   return { title, questions };
 }
 
@@ -216,47 +180,21 @@ function parseInlineBlock(lines: string[]): ParseResult['questions'][number] | n
   while (lines.length > 0 && lines[0].trim() === '') lines.shift();
   while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
   if (lines.length === 0) return null;
-
   const stemLines: string[] = [];
   const options: Option[] = [];
-  let answer = '';
-  let explanation = '';
-  let inOptions = false;
-  let inExplanation = false;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
+  let answer = '', explanation = '', inOpts = false, inExp = false;
+  for (const raw of lines) {
+    const line = raw.trim();
     if (line === '') continue;
-
-    if (/^解析\s*[:：]/.test(line)) {
-      inExplanation = true; inOptions = false;
-      explanation = line.replace(/^解析\s*[:：]\s*/, '');
-      continue;
-    }
-    if (inExplanation) { explanation += '\n' + line; continue; }
-
-    if (/^(正确)?答案\s*[:：]/.test(line)) {
-      answer = line.replace(/^(正确)?答案\s*[:：]\s*/, '').trim();
-      inOptions = false;
-      continue;
-    }
-
-    const optMatch = line.match(/^([A-E])\s*[.、)]\s*(.+)/);
-    if (optMatch) {
-      inOptions = true;
-      options.push({ label: optMatch[1], text: optMatch[2].trim() });
-      continue;
-    }
-
-    if (!inOptions) {
-      const stemLine = line.replace(/^\d+\s*[.、)）]\s*/, '').replace(/^\*\*\d+\.?\*\s*/, '');
-      stemLines.push(stemLine);
-    }
+    if (/^解析\s*[:：]/.test(line)) { inExp = true; inOpts = false; explanation = line.replace(/^解析\s*[:：]\s*/, ''); continue; }
+    if (inExp) { explanation += '\n' + line; continue; }
+    if (/^(正确)?答案\s*[:：]/.test(line)) { answer = line.replace(/^(正确)?答案\s*[:：]\s*/, '').trim(); inOpts = false; continue; }
+    const om = line.match(/^([A-E])\s*[.、)]\s*(.+)/);
+    if (om) { inOpts = true; options.push({ label: om[1], text: om[2].trim() }); continue; }
+    if (!inOpts) stemLines.push(line.replace(/^\d+\s*[.、)）]\s*/, '').replace(/^\*\*\d+\.?\*\s*/, ''));
   }
-
   const stem = stemLines.join('\n').trim();
   if (!stem || !answer) return null;
-
   return { index: 0, stem, options, answer, explanation: explanation || undefined };
 }
 
