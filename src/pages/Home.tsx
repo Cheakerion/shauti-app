@@ -69,6 +69,8 @@ export default function Home() {
       const latestVer = Android.checkVersion()
       if (latestVer.startsWith('ERR:')) { alert('更新失败: ' + latestVer); return }
       const cur = localStorage.getItem('quiz_app_ver') || ''
+      // Set version on first run
+      if (!cur && latestVer) localStorage.setItem('quiz_app_ver', latestVer)
       if (latestVer && latestVer !== cur) {
         if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
           localStorage.setItem('quiz_app_ver', latestVer)
