@@ -62,16 +62,22 @@ export default function Home() {
     } finally { setLoading(false) }
   }
 
+  function newer(a: string, b: string) {
+    const pa = a.split('.').map(Number), pb = b.split('.').map(Number)
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      if ((pa[i]||0) !== (pb[i]||0)) return (pa[i]||0) > (pb[i]||0)
+    }
+    return false
+  }
+
   async function checkUpdate() {
-    // Use Android Java HTTP (bypasses WebView fetch issues)
     const Android = (window as any).Android
     if (Android && Android.checkVersion) {
       const latestVer = Android.checkVersion()
       if (latestVer.startsWith('ERR:')) { alert('更新失败: ' + latestVer); return }
       const cur = localStorage.getItem('quiz_app_ver') || ''
-      // Set version on first run
       if (!cur && latestVer) localStorage.setItem('quiz_app_ver', latestVer)
-      if (latestVer && latestVer !== cur) {
+      if (latestVer && newer(latestVer, cur || '0')) {
         if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
           localStorage.setItem('quiz_app_ver', latestVer)
           window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
@@ -89,7 +95,7 @@ export default function Home() {
       clearTimeout(timer)
       const latestVer = (await res.json()).version
       const cur = localStorage.getItem('quiz_app_ver') || ''
-      if (latestVer !== cur) {
+      if (newer(latestVer, cur || '0')) {
         if (confirm(`发现 v${latestVer}\n下载？`)) {
           localStorage.setItem('quiz_app_ver', latestVer)
           window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
