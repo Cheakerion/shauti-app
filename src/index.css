@@ -356,3 +356,12 @@ body {
 .mb-8 { margin-bottom: 8px; }
 .mb-16 { margin-bottom: 16px; }
 .gap-8 { gap: 8px; }
+
+/* ---------- 自评按钮 ---------- */
+.self-eval-btn.correct {
+  background: var(--correct);
+}
+
+.self-eval-btn.wrong {
+  background: var(--wrong);
+}

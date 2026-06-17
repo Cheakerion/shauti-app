@@ -1,7 +1,7 @@
 // ============================================================
 // Markdown 题库解析器 — 兼容微信篡改
 // ============================================================
-import type { ParseResult, Option } from './types';
+import type { ParseResult, Option, QuestionType } from './types';
 
 export function parseMarkdownBank(markdown: string): ParseResult {
   let title = '未命名题库';
@@ -83,8 +83,8 @@ function parseAnswerTable(text: string): Map<number, string> {
   const map = new Map<number, string>();
   const lines = text.split('\n');
   for (const line of lines) {
-    const m = line.match(/^\|\s*(\d+)\s*\|\s*([A-Ea-e]+)\s*\|/);
-    if (m) map.set(parseInt(m[1]), m[2].toUpperCase());
+    const m = line.match(/^\|\s*(\d+)\s*\|\s*(.+?)\s*\|/);
+    if (m) map.set(parseInt(m[1]), m[2].trim());
   }
   return map;
 }
@@ -103,8 +103,13 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
   const lines = text.split('\n');
   const qRegex = /\*\*(\d+)[\.\s]/;
   let i = 0;
+  let currentType: QuestionType = 'choice';
 
   while (i < lines.length) {
+    // 检测区块标题切换题型
+    const sectionType = detectSectionType(lines[i]);
+    if (sectionType !== null) { currentType = sectionType; i++; continue; }
+
     if (!lines[i].match(qRegex)) { i++; continue; }
 
     const match = lines[i].match(qRegex)!;
@@ -122,16 +127,18 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
     while (i < lines.length) {
       const line = lines[i];
       if (line.match(qRegex)) break; // next question
+      // 区块标题也中止当前题
+      if (detectSectionType(line)) break;
 
       const t = line.trim();
       if (/^#{1,3}\s/.test(t) || /^---+$/.test(t) || /^>/.test(t) || /^\|/.test(t)) {
         i++; continue;
       }
 
-      // WeChat inline answer: **答案：X** / **Answer: X**
-      const inlineAns = t.match(/^\*\*(?:(?:正确)?答案|Answer)\s*[:：]\s*([A-Ea-e]+)\s*\*\*$/i);
+      // WeChat inline answer（兼容任意文本答案，不限于 A-E）
+      const inlineAns = t.match(/^\*\*(?:(?:正确)?答案|Answer)\s*[:：]\s*(.+)\s*\*\*$/i);
       if (inlineAns) {
-        currentAnswer = inlineAns[1].toUpperCase();
+        currentAnswer = inlineAns[1].trim();
         i++; continue;
       }
 
@@ -159,10 +166,13 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
     }
 
     const stem = stemLines.join('\n').trim();
-    if (stem && options.length > 0) {
+    // 选择题必须有选项；文本题有 stem+answer 即可
+    const isChoice = currentType === 'choice';
+    const valid = stem && (isChoice ? options.length > 0 : !!currentAnswer);
+    if (valid) {
       results.push({
         index: 0, localNum, stem, options, answer: currentAnswer,
-        explanation: currentExplanation || undefined,
+        explanation: currentExplanation || undefined, type: currentType,
       } as any);
     }
   }
@@ -183,18 +193,33 @@ function parseInlineFormat(markdown: string, title: string): ParseResult {
     i++;
   }
   const blocks: string[][] = [];
+  const blockTypes: QuestionType[] = [];
   let cur: string[] = [];
+  let currentType: QuestionType = 'choice';
+
   for (; i < lines.length; i++) {
+    // 检测题型区块标题
+    const sectionType = detectSectionType(lines[i]);
+    if (sectionType !== null) {
+      // 保存当前累积的 block
+      if (cur.length > 0) { blocks.push(cur); blockTypes.push(currentType); cur = []; }
+      currentType = sectionType;
+      continue;
+    }
     if (/^---+$/.test(lines[i].trim())) {
-      if (cur.length > 0) { blocks.push(cur); cur = []; }
+      if (cur.length > 0) { blocks.push(cur); blockTypes.push(currentType); cur = []; }
     } else { cur.push(lines[i]); }
   }
-  if (cur.length > 0) blocks.push(cur);
-  for (const b of blocks) { const q = parseInlineBlock(b); if (q) questions.push(q); }
+  if (cur.length > 0) { blocks.push(cur); blockTypes.push(currentType); }
+
+  for (let j = 0; j < blocks.length; j++) {
+    const q = parseInlineBlock(blocks[j], blockTypes[j]);
+    if (q) questions.push(q);
+  }
   return { title, questions };
 }
 
-function parseInlineBlock(lines: string[]): ParseResult['questions'][number] | null {
+function parseInlineBlock(lines: string[], qType: QuestionType = 'choice'): ParseResult['questions'][number] | null {
   while (lines.length > 0 && lines[0].trim() === '') lines.shift();
   while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
   if (lines.length === 0) return null;
@@ -213,9 +238,27 @@ function parseInlineBlock(lines: string[]): ParseResult['questions'][number] | n
   }
   const stem = stemLines.join('\n').trim();
   if (!stem || !answer) return null;
-  return { index: 0, stem, options, answer, explanation: explanation || undefined };
+  return { index: 0, stem, options, answer, explanation: explanation || undefined, type: qType };
 }
 
 export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+}
+
+// ============================================================
+// 题型区块标题检测（兼容微信格式）
+// ============================================================
+
+const SECTION_PATTERNS: [RegExp, QuestionType][] = [
+  [/^##\s*(选择|单选题|多选题)/, 'choice'],
+  [/^##\s*名词解释/, 'explain'],
+  [/^##\s*(简答|问答)/, 'short_answer'],
+];
+
+function detectSectionType(line: string): QuestionType | null {
+  const t = line.trim();
+  for (const [re, qType] of SECTION_PATTERNS) {
+    if (re.test(t)) return qType;
+  }
+  return null;
 }

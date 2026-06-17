@@ -13,6 +13,7 @@ export interface Question {
   id: string;            // 唯一 ID（导入时自动生成）
   bankId: string;        // 所属题库 ID
   index: number;         // 题库内序号（1-based）
+  type: QuestionType;    // 题目类型
   localNum?: number;     // 解析时使用的题号（split-format 中各模块独立编号）
   stem: string;          // 题干（支持多行）
   options: Option[];     // 选项列表
@@ -49,6 +50,9 @@ export interface ParseResult {
   title: string;
   questions: Omit<Question, 'id' | 'bankId'>[];
 }
+
+/** 题目类型 */
+export type QuestionType = 'choice' | 'explain' | 'short_answer';
 
 /** 刷题模式 */
 export type QuizMode = 'sequential' | 'random';
