@@ -23,6 +23,7 @@ export default function TextQuiz({ qType }: Props) {
   const [historyAnswers, setHistoryAnswers] = useState<Map<string, string>>(new Map())
   const [selfEvals, setSelfEvals] = useState<Map<string, boolean>>(new Map())
   const [answerRevealed, setAnswerRevealed] = useState(false)
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set())
   const [showQuestionList, setShowQuestionList] = useState(false)
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
@@ -44,6 +45,7 @@ export default function TextQuiz({ qType }: Props) {
           setStartTime(s.startTime || Date.now())
           if (s.historyAnswers) setHistoryAnswers(new Map(Object.entries(s.historyAnswers)))
           if (s.selfEvals) setSelfEvals(new Map(Object.entries(s.selfEvals)))
+          if (s.revealedIds) setRevealedIds(new Set(s.revealedIds))
           return
         } catch (e) {}
       }
@@ -63,6 +65,7 @@ export default function TextQuiz({ qType }: Props) {
       currentIndex, shuffledIndices, startTime,
       historyAnswers: Object.fromEntries(historyAnswers),
       selfEvals: Object.fromEntries(selfEvals),
+      revealedIds: [...revealedIds],
     }
     localStorage.setItem(sessionKey, JSON.stringify(session))
   }, [currentIndex, historyAnswers, selfEvals, shuffledIndices, startTime, bankId, allQuestions.length])
@@ -75,11 +78,10 @@ export default function TextQuiz({ qType }: Props) {
 
   useEffect(() => {
     if (question) {
-      const existing = historyAnswers.get(question.id)
-      setSelectedAnswer(existing || null)
-      setAnswerRevealed(!!existing)
+      const revealed = revealedIds.has(question.id)
+      setAnswerRevealed(revealed)
     }
-  }, [currentIndex, shuffledIndices, question?.id])
+  }, [currentIndex, shuffledIndices, question?.id, revealedIds])
 
   function fullRestart() {
     localStorage.removeItem(sessionKey)
@@ -88,6 +90,7 @@ export default function TextQuiz({ qType }: Props) {
     setRecords([])
     setHistoryAnswers(new Map())
     setSelfEvals(new Map())
+    setRevealedIds(new Set())
     setAnswerRevealed(false)
     setShowComplete(false)
     setAllDone(false)
@@ -109,10 +112,10 @@ export default function TextQuiz({ qType }: Props) {
   }
 
   const revealAnswer = useCallback(async () => {
-    if (!question || historyAnswers.has(question.id)) return
+    if (!question || revealedIds.has(question.id)) return
     setAnswerRevealed(true)
-    setHistoryAnswers((prev) => new Map(prev).set(question.id, ''))
-  }, [question, historyAnswers])
+    setRevealedIds((prev) => new Set(prev).add(question.id))
+  }, [question, revealedIds])
 
   const handleSelfEval = useCallback(async (isCorrect: boolean) => {
     if (!question) return
@@ -167,11 +170,11 @@ export default function TextQuiz({ qType }: Props) {
     const map = new Map<string, boolean | null>()
     for (const q of allQuestions) {
       if (selfEvals.has(q.id)) map.set(q.id, selfEvals.get(q.id)!)
-      else if (historyAnswers.has(q.id)) map.set(q.id, null) // revealed but not self-evaled
+      else if (revealedIds.has(q.id)) map.set(q.id, null) // revealed, not yet self-evaled
       else map.set(q.id, null)
     }
     return map
-  }, [allQuestions, historyAnswers, selfEvals])
+  }, [allQuestions, selfEvals, revealedIds])
 
   // ---- 完成页 ----
   if (showComplete) {
@@ -281,7 +284,7 @@ export default function TextQuiz({ qType }: Props) {
                 const status = questionStatus.get(q.id)
                 let dotCls = 'q-dot'
                 if (status === true) dotCls += ' q-correct'
-                else if (status === false && historyAnswers.has(q.id)) dotCls += ' q-wrong'
+                else if (status === false && revealedIds.has(q.id)) dotCls += ' q-wrong'
                 if (i === currentIndex) dotCls += ' q-current'
                 return (
                   <button key={i} className={dotCls} onClick={() => jumpToQuestion(i)}>
