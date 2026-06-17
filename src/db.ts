@@ -74,33 +74,21 @@ export async function saveAnswerRecord(
   await db.answerRecords.put(record);
 }
 
-/** 获取某个题库的所有答错题目 ID */
+/** 获取某个题库的所有答错题目 ID（保留所有答错过的题，不管后来是否做对） */
 export async function getWrongQuestionIds(
   bankId: string
 ): Promise<string[]> {
-  // 获取每道题的最新答题记录，筛选出答错的
   const records = await db.answerRecords
     .where('bankId')
     .equals(bankId)
     .toArray();
 
-  // 按题目 ID 分组，取每组最新的一条
-  const latestByQuestion = new Map<string, AnswerRecord>();
+  // 找出所有至少答错过一次的题目
+  const wrongIds = new Set<string>();
   for (const r of records) {
-    const existing = latestByQuestion.get(r.questionId);
-    if (!existing || r.timestamp > existing.timestamp) {
-      latestByQuestion.set(r.questionId, r);
-    }
+    if (!r.isCorrect) wrongIds.add(r.questionId);
   }
-
-  // 筛选答错的
-  const wrongIds: string[] = [];
-  for (const [qid, record] of latestByQuestion) {
-    if (!record.isCorrect) {
-      wrongIds.push(qid);
-    }
-  }
-  return wrongIds;
+  return [...wrongIds];
 }
 
 /** 获取某个题库的错题 */

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getWrongQuestions, getQuestionCount, saveAnswerRecord, db } from '../db'
 import type { Question, AnswerRecord } from '../types'
@@ -14,6 +14,21 @@ export default function WrongBook() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [showComplete, setShowComplete] = useState(false)
   const [showGrid, setShowGrid] = useState(false)
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }, [])
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) nextQuestion()
+      else prevQuestion()
+    }
+  }, [currentIndex, wrongQuestions.length])
 
   useEffect(() => {
     if (!bankId) return
@@ -174,7 +189,8 @@ export default function WrongBook() {
 
       {/* 题目卡片 */}
       {question && (
-        <div className="card">
+        <div className="card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
+          style={{ touchAction: 'pan-y' }}>
           <div className="stem-text">{question.stem}</div>
 
           <div className="option-list">
