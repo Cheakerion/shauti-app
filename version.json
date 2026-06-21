@@ -1,1 +1,1 @@
-{"version":"1.13","notes":"修复解析器微信粗体兼容bug、增加自动化测试、CDN链接修正"}
+{"version":"1.14","notes":"更新检测改用GitHub源(raw.githubusercontent.com)，解决CDN缓存延迟"}

@@ -36,7 +36,7 @@ export default function Home() {
     try {
       const ctrl = new AbortController()
       const timer = setTimeout(() => ctrl.abort(), 8000)
-      const url = `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${Date.now()}`
+      const url = `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${Date.now()}`
       const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
       clearTimeout(timer)
       const latestVer = (await res.json()).version
@@ -112,7 +112,7 @@ export default function Home() {
       try {
         const ctrl = new AbortController()
         const timer = setTimeout(() => ctrl.abort(), 10000)
-        const url = `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${Date.now()}`
+        const url = `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${Date.now()}`
         const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
         clearTimeout(timer)
         return (await res.json()).version
@@ -167,7 +167,7 @@ export default function Home() {
   function handleDownload(ver: string) {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
-    window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/%E5%88%B7%E9%A2%98.apk', '_blank')
+    window.open('https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk', '_blank')
     // APK 只有 ~130KB，3 秒足够下完
     setTimeout(() => {
       setDownloading(false)
