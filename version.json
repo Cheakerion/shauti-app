@@ -1,1 +1,1 @@
-{"version":"1.21","notes":"WebView用https://拦截器替代file://，彻底解决ES module白屏；加E2E测试和错误提示"}
+{"version":"1.22","notes":"所有JS/CSS内联到单个HTML文件，彻底解决WebView ES module加载白屏"}

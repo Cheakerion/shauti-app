@@ -35,12 +35,23 @@ Write-Host "[1/5] Building web app..." -ForegroundColor Yellow
 if ($LASTEXITCODE -ne 0) { throw "npm build failed" }
 
 # ============================================================
+# Step 1.5: Inline JS+CSS into single HTML (fixes WebView white screen)
+# ============================================================
+Write-Host "[1.5/5] Inlining assets..." -ForegroundColor Yellow
+& powershell -ExecutionPolicy Bypass -File "$ScriptDir\scripts\build-inline.ps1"
+if ($LASTEXITCODE -ne 0) { throw "inline build failed" }
+
+# ============================================================
 # Step 2: Copy assets to apk-build
 # ============================================================
 Write-Host "[2/5] Copying assets..." -ForegroundColor Yellow
 $AssetsDir = "$ApkBuildDir\assets"
 if (Test-Path $AssetsDir) { Remove-Item -Recurse -Force $AssetsDir }
 Copy-Item -Recurse "$DistDir\*" $AssetsDir
+
+# 用 inline.html 替换 index.html（所有资源内联，零额外请求）
+Remove-Item "$AssetsDir\index.html" -Force
+Rename-Item "$AssetsDir\inline.html" "index.html"
 
 # ============================================================
 # Step 3: Compile Java -> DEX + Package base APK with aapt
