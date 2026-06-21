@@ -56,11 +56,12 @@ New-Item -ItemType Directory -Force -Path $ObjDir | Out-Null
 
 # Compile Java
 $JavaSrc = "$ApkBuildDir\src\com\quiz\app\MainActivity.java"
-& javac -d $ClassesDir -cp $AndroidJar $JavaSrc
+& javac -encoding UTF-8 -d $ClassesDir -cp $AndroidJar $JavaSrc
 if ($LASTEXITCODE -ne 0) { throw "javac failed" }
 
-# Convert to DEX (must use *.class — 匿名内部类 MainActivity$1.class 也必须一起编译)
-& "$BuildTools36\d8.bat" --lib $AndroidJar --output $ObjDir "$ClassesDir\com\quiz\app\MainActivity.class" "$ClassesDir\com\quiz\app\MainActivity`$1.class"
+# Convert to DEX (pass all .class files — 内部类数量可能变化)
+$ClassFiles = Get-ChildItem "$ClassesDir\com\quiz\app" -Filter "*.class" | ForEach-Object { $_.FullName }
+& "$BuildTools36\d8.bat" --lib $AndroidJar --output $ObjDir @ClassFiles
 if ($LASTEXITCODE -ne 0) { throw "d8 failed" }
 
 # Package base APK (aapt v1, needs res/values/strings.xml)

@@ -1,1 +1,1 @@
-{"version":"1.20","notes":"移除script crossorigin属性，修复WebView白屏(ES module CORS)"}
+{"version":"1.21","notes":"WebView用https://拦截器替代file://，彻底解决ES module白屏；加E2E测试和错误提示"}
