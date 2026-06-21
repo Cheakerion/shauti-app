@@ -32,23 +32,49 @@ export default function Home() {
     autoCheckUpdate()
   }, [])
 
-  // 双保险取版本：先 GitHub 源（无缓存），失败则 CDN（国内可能更快）
+  // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
   async function fetchVersionUrl(): Promise<string | null> {
     const ts = Date.now()
-    const urls = [
-      `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
-      `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
-    ]
-    for (const url of urls) {
-      try {
-        const ctrl = new AbortController()
-        const timer = setTimeout(() => ctrl.abort(), 5000)
-        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
-        clearTimeout(timer)
-        if (!res.ok) continue
-        return (await res.json()).version
-      } catch (e) { continue }
-    }
+
+    // 方案 1: GitHub API（零缓存，比 raw 源更容易通）
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 5000)
+      const res = await fetch(
+        `https://api.github.com/repos/Cheakerion/shauti-app/contents/version.json?t=${ts}`,
+        { signal: ctrl.signal, cache: 'no-store', headers: { Accept: 'application/vnd.github.v3+json' } }
+      )
+      clearTimeout(timer)
+      if (res.ok) {
+        const data = await res.json()
+        return JSON.parse(atob(data.content)).version
+      }
+    } catch (_) { /* 下一个 */ }
+
+    // 方案 2: raw.githubusercontent.com
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 5000)
+      const res = await fetch(
+        `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
+        { signal: ctrl.signal, cache: 'no-store' }
+      )
+      clearTimeout(timer)
+      if (res.ok) return (await res.json()).version
+    } catch (_) { /* 下一个 */ }
+
+    // 方案 3: jsDelivr CDN（最后兜底）
+    try {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 5000)
+      const res = await fetch(
+        `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
+        { signal: ctrl.signal, cache: 'no-store' }
+      )
+      clearTimeout(timer)
+      if (res.ok) return (await res.json()).version
+    } catch (_) { /* 下一个 */ }
+
     return null
   }
 
