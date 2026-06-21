@@ -164,16 +164,34 @@ export default function Home() {
     if (file) handleFile(file)
   }
 
-  function handleDownload(ver: string) {
+  async function handleDownload(ver: string) {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
-    window.open('https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk', '_blank')
-    // APK 只有 ~130KB，3 秒足够下完
-    setTimeout(() => {
+
+    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk'
+
+    try {
+      const res = await fetch(apkUrl)
+      if (!res.ok) throw new Error('下载失败: ' + res.status)
+      const blob = await res.blob()
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = '刷题-v' + ver + '.apk'
+      a.style.display = 'none'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
       setDownloading(false)
       setUpdateVer(null)
-      alert('下载完成，请安装新版本')
-    }, 3000)
+      alert('下载完成，请在通知栏点击安装')
+    } catch (e: any) {
+      setDownloading(false)
+      try { window.open(apkUrl, '_blank') } catch (_) {}
+    }
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
@@ -205,11 +223,25 @@ export default function Home() {
         <div className="update-banner">
           <span>发现新版本 v{updateVer}！</span>
           {downloading ? (
-            <span className="download-status">⏳ 下载中...</span>
+            <span style={{ color: '#2563eb', fontWeight: 600 }}>⏳ 下载中...</span>
           ) : (
             <button className="btn btn-sm" onClick={() => handleDownload(updateVer)}>下载更新</button>
           )}
           <button className="btn btn-sm btn-outline" onClick={() => setUpdateVer(null)}>✕</button>
+        </div>
+      )}
+
+      {/* 下载中遮罩 */}
+      {downloading && (
+        <div className="modal-overlay">
+          <div className="modal text-center" style={{ maxWidth: 300 }}>
+            <div style={{ fontSize: '3rem', marginBottom: 12 }}>📥</div>
+            <h3>正在下载</h3>
+            <p style={{ color: '#64748b', marginTop: 8 }}>大小约 140KB，很快完成</p>
+            <div style={{ marginTop: 20, width: '100%', height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+              <div className="progress-bar-indeterminate" style={{ height: '100%', width: '40%', background: '#2563eb', borderRadius: 2 }} />
+            </div>
+          </div>
         </div>
       )}
       <div className="home-header">

@@ -227,6 +227,15 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.progress-bar-indeterminate {
+  animation: indeterminate 1.5s ease-in-out infinite;
+}
+
 /* ---------- 首页 ---------- */
 .home-header {
   text-align: center;
