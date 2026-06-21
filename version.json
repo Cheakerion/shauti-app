@@ -1,1 +1,1 @@
-{"version":"1.19","notes":"移除atob和AbortController依赖，修复老手机白屏兼容性"}
+{"version":"1.20","notes":"移除script crossorigin属性，修复WebView白屏(ES module CORS)"}
