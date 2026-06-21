@@ -32,20 +32,34 @@ export default function Home() {
     autoCheckUpdate()
   }, [])
 
+  // 双保险取版本：先 GitHub 源（无缓存），失败则 CDN（国内可能更快）
+  async function fetchVersionUrl(): Promise<string | null> {
+    const ts = Date.now()
+    const urls = [
+      `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
+      `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
+    ]
+    for (const url of urls) {
+      try {
+        const ctrl = new AbortController()
+        const timer = setTimeout(() => ctrl.abort(), 5000)
+        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
+        clearTimeout(timer)
+        if (!res.ok) continue
+        return (await res.json()).version
+      } catch (e) { continue }
+    }
+    return null
+  }
+
   async function autoCheckUpdate() {
-    try {
-      const ctrl = new AbortController()
-      const timer = setTimeout(() => ctrl.abort(), 8000)
-      const url = `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${Date.now()}`
-      const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
-      clearTimeout(timer)
-      const latestVer = (await res.json()).version
-      let cur = localStorage.getItem('quiz_app_ver') || ''
-      if (!cur && latestVer) { localStorage.setItem('quiz_app_ver', latestVer); cur = latestVer }
-      if (latestVer && newer(latestVer, cur || '0')) {
-        setUpdateVer(latestVer)
-      }
-    } catch (e) { /* 静默失败，用户可手动检查 */ }
+    const latestVer = await fetchVersionUrl()
+    if (!latestVer) return
+    let cur = localStorage.getItem('quiz_app_ver') || ''
+    if (!cur && latestVer) { localStorage.setItem('quiz_app_ver', latestVer); cur = latestVer }
+    if (latestVer && newer(latestVer, cur || '0')) {
+      setUpdateVer(latestVer)
+    }
   }
 
   // Receive file from Android WebView (WeChat share, file open, etc.)
@@ -105,23 +119,6 @@ export default function Home() {
     const Android = (window as any).Android
     let cur = localStorage.getItem('quiz_app_ver') || ''
 
-    // 并行获取：Android 桥 + 浏览器 fetch，取最新的
-    const candidates: (string | null)[] = [null, null]
-
-    const doFetch = async () => {
-      try {
-        const ctrl = new AbortController()
-        const timer = setTimeout(() => ctrl.abort(), 10000)
-        const url = `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${Date.now()}`
-        const res = await fetch(url, { signal: ctrl.signal, cache: 'no-store' })
-        clearTimeout(timer)
-        return (await res.json()).version
-      } catch (e: any) {
-        console.warn('fetch版本失败:', e.message)
-        return null
-      }
-    }
-
     const getAndroidVer = (): string | null => {
       try {
         if (Android?.checkVersion) {
@@ -132,21 +129,17 @@ export default function Home() {
       return null
     }
 
-    // 并行请求
     const [androidVer, fetchVer] = await Promise.all([
       Promise.resolve(getAndroidVer()),
-      doFetch(),
+      fetchVersionUrl(),
     ])
-    candidates[0] = androidVer
-    candidates[1] = fetchVer
 
-    // 取最新的版本
     let latestVer = ''
-    for (const v of candidates) {
+    for (const v of [androidVer, fetchVer]) {
       if (v && newer(v, latestVer || '0')) latestVer = v
     }
 
-    if (!latestVer) { alert('更新失败: 无法获取版本信息'); return }
+    if (!latestVer) { alert('检测失败：无法获取版本信息，请检查网络'); return }
     if (!cur && latestVer) { localStorage.setItem('quiz_app_ver', latestVer); cur = latestVer }
 
     if (newer(latestVer, cur || '0')) {
@@ -168,30 +161,37 @@ export default function Home() {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
 
-    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk'
+    const apkUrls = [
+      'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk',
+      'https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/%E5%88%B7%E9%A2%98.apk',
+    ]
 
-    try {
-      const res = await fetch(apkUrl)
-      if (!res.ok) throw new Error('下载失败: ' + res.status)
-      const blob = await res.blob()
+    for (const apkUrl of apkUrls) {
+      try {
+        const res = await fetch(apkUrl)
+        if (!res.ok) continue
+        const blob = await res.blob()
 
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = '刷题-v' + ver + '.apk'
-      a.style.display = 'none'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = '刷题-v' + ver + '.apk'
+        a.style.display = 'none'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
 
-      setDownloading(false)
-      setUpdateVer(null)
-      alert('下载完成，请在通知栏点击安装')
-    } catch (e: any) {
-      setDownloading(false)
-      try { window.open(apkUrl, '_blank') } catch (_) {}
+        setDownloading(false)
+        setUpdateVer(null)
+        alert('下载完成，请在通知栏点击安装')
+        return
+      } catch (_) { /* 试下一个 URL */ }
     }
+
+    // 两个源都挂了，回退 window.open
+    setDownloading(false)
+    try { window.open(apkUrls[0], '_blank') } catch (_) {}
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
