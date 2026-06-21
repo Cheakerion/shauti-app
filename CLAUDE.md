@@ -1,6 +1,6 @@
 # 刷题 App
 
-> **⚠️ 铁律：改完 `src/parser.ts` 或 `src/db.ts` 后，必须先跑 `powershell -ExecutionPolicy Bypass -File test.ps1`，42 个测试全部通过才能说搞定。挂了当场修。**
+> **⚠️ 铁律：改完 `src/` 下任何代码后，必须先跑 `powershell -ExecutionPolicy Bypass -File test.ps1`，50 个测试全部通过才能说搞定。挂了当场修。**
 
 ## 技术栈
 
@@ -115,16 +115,22 @@ powershell -ExecutionPolicy Bypass -File test.ps1 -Watch
 ```
 
 ### 覆盖范围
-- **解析器测试** (`src/__tests__/parser.test.ts`) — 42 个用例
+- **解析器测试** (`src/__tests__/parser.test.ts`) — 34 个用例
   - 行内格式：选择题 / 简答题 / 名词解释
   - 分离式格式（`## 答案`）
   - 混合题型（同一文件多种题型）
   - 微信篡改容错（粗体标记、中文标点）
   - 边界情况（空文件、无答案、多行题干/解析）
   - 真实题库文件集成测试（所有 `题库/*.md` 逐个解析）
-- **数据库测试** (`src/__tests__/db.test.ts`)
+- **数据库测试** (`src/__tests__/db.test.ts`) — 8 个用例
   - 题库 CRUD、级联删除
   - 答题记录、错题追踪
+- **UI 交互测试** (`src/__tests__/Home.test.tsx`) — 8 个用例
+  - 自动检测更新（启动时）
+  - 手动检测更新（confirm/alert）
+  - 下载成功（Blob → anchor click）
+  - 下载失败（回退 window.open）
+  - localStorage 版本持久化
 
 ### 原则
 - 每次改完 `parser.ts` 或 `db.ts` 后跑一遍，30 秒出结果
