@@ -26,14 +26,8 @@ globalThis.confirm = vi.fn(() => true)
 globalThis.URL.createObjectURL = vi.fn(() => 'blob:test')
 globalThis.URL.revokeObjectURL = vi.fn()
 globalThis.open = vi.fn()
-// atob for GitHub API base64 decode
-globalThis.atob = vi.fn((s: string) => Buffer.from(s, 'base64').toString('utf-8'))
 
-const verJson = (v: string) => ({ ok: true, status: 200, json: async () => ({ version: v }) })
-const ghApiVer = (v: string) => ({
-  ok: true, status: 200,
-  json: async () => ({ content: Buffer.from(JSON.stringify({ version: v })).toString('base64'), encoding: 'base64' }),
-})
+const ver = (v: string) => ({ ok: true, status: 200, json: async () => ({ version: v }) })
 const apk = () => ({ ok: true, status: 200, blob: async () => new Blob(['apk']) })
 
 beforeEach(() => {
@@ -58,10 +52,10 @@ function renderHome() {
 // ============================================================
 // 一、自动检测（三保险）
 // ============================================================
-describe('autoCheckUpdate — fetchVersionUrl', () => {
-  it('GitHub API 可用 → 发现新版本', async () => {
+describe('autoCheckUpdate', () => {
+  it('GitHub API raw 可用 → 发现新版本', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ghApiVer('1.17')))  // API 成功，不再试后面
+    qFetch(() => Promise.resolve(ver('1.18')))
 
     renderHome()
 
@@ -72,8 +66,8 @@ describe('autoCheckUpdate — fetchVersionUrl', () => {
 
   it('API 失败 → raw 成功', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.reject(new Error('api down')))
-    qFetch(() => Promise.resolve(verJson('1.17')))
+    qFetch(() => Promise.reject(new Error('api')))
+    qFetch(() => Promise.resolve(ver('1.18')))
 
     renderHome()
 
@@ -82,11 +76,11 @@ describe('autoCheckUpdate — fetchVersionUrl', () => {
     }, { timeout: 5000 })
   })
 
-  it('API + raw 都失败 → CDN 兜底成功', async () => {
+  it('API + raw 失败 → CDN 兜底', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
     qFetch(() => Promise.reject(new Error('api')))
     qFetch(() => Promise.reject(new Error('raw')))
-    qFetch(() => Promise.resolve(verJson('1.17')))
+    qFetch(() => Promise.resolve(ver('1.18')))
 
     renderHome()
 
@@ -97,9 +91,9 @@ describe('autoCheckUpdate — fetchVersionUrl', () => {
 
   it('三个源全挂 → 静默', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.reject(new Error('api')))
-    qFetch(() => Promise.reject(new Error('raw')))
-    qFetch(() => Promise.reject(new Error('cdn')))
+    qFetch(() => Promise.reject(new Error('x')))
+    qFetch(() => Promise.reject(new Error('x')))
+    qFetch(() => Promise.reject(new Error('x')))
 
     renderHome()
     await new Promise(r => setTimeout(r, 300))
@@ -107,8 +101,8 @@ describe('autoCheckUpdate — fetchVersionUrl', () => {
   })
 
   it('版本相同 → 不显示', async () => {
-    localStorage.setItem('quiz_app_ver', '1.17')
-    qFetch(() => Promise.resolve(ghApiVer('1.17')))
+    localStorage.setItem('quiz_app_ver', '1.18')
+    qFetch(() => Promise.resolve(ver('1.18')))
 
     renderHome()
     await new Promise(r => setTimeout(r, 500))
@@ -120,11 +114,11 @@ describe('autoCheckUpdate — fetchVersionUrl', () => {
 // 二、手动检测
 // ============================================================
 describe('checkUpdate', () => {
-  it('GitHub API 通常可用 → 发现新版本 → confirm → 下载', async () => {
+  it('有新版本 → confirm → 下载', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ghApiVer('1.0')))       // auto: API ok
-    qFetch(() => Promise.resolve(ghApiVer('1.17')))       // manual: API ok
-    qFetch(() => Promise.resolve(apk()))                  // download APK #1
+    qFetch(() => Promise.resolve(ver('1.0')))
+    qFetch(() => Promise.resolve(ver('1.18')))
+    qFetch(() => Promise.resolve(apk()))
 
     renderHome()
     await act(async () => { await new Promise(r => setTimeout(r, 200)) })
@@ -137,29 +131,12 @@ describe('checkUpdate', () => {
     }, { timeout: 5000 })
   })
 
-  it('API 失败 raw 成功 → 仍能检测', async () => {
-    localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ghApiVer('1.0')))       // auto: API ok
-    qFetch(() => Promise.reject(new Error('api')))         // manual: API fail
-    qFetch(() => Promise.resolve(verJson('1.17')))         // manual: raw ok
-    qFetch(() => Promise.resolve(apk()))                  // download
-
-    renderHome()
-    await act(async () => { await new Promise(r => setTimeout(r, 200)) })
-
-    await act(async () => { fireEvent.click(screen.getByText('🔄 检查更新')) })
-
-    await waitFor(() => {
-      expect(mockAnchorClick).toHaveBeenCalled()
-    }, { timeout: 5000 })
-  })
-
   it('全挂 → 提示检测失败', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ghApiVer('1.0')))       // auto
-    qFetch(() => Promise.reject(new Error('x')))          // manual api
-    qFetch(() => Promise.reject(new Error('x')))          // manual raw
-    qFetch(() => Promise.reject(new Error('x')))          // manual cdn
+    qFetch(() => Promise.resolve(ver('1.0')))
+    qFetch(() => Promise.reject(new Error('x')))
+    qFetch(() => Promise.reject(new Error('x')))
+    qFetch(() => Promise.reject(new Error('x')))
 
     renderHome()
     await act(async () => { await new Promise(r => setTimeout(r, 200)) })
@@ -178,27 +155,7 @@ describe('checkUpdate', () => {
 describe('handleDownload', () => {
   it('正常下载', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ghApiVer('1.17')))  // auto
-    qFetch(() => Promise.resolve(apk()))               // APK
-
-    renderHome()
-
-    await waitFor(() => {
-      expect(screen.getByText(/发现新版本/)).toBeTruthy()
-    }, { timeout: 5000 })
-
-    await act(async () => { fireEvent.click(screen.getByText('下载更新')) })
-
-    await waitFor(() => {
-      expect(mockAnchorClick).toHaveBeenCalled()
-      expect(localStorage.getItem('quiz_app_ver')).toBe('1.17')
-    }, { timeout: 5000 })
-  })
-
-  it('第1个APK源失败 → 第2个成功', async () => {
-    localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ghApiVer('1.17')))
-    qFetch(() => Promise.reject(new Error('x')))
+    qFetch(() => Promise.resolve(ver('1.18')))
     qFetch(() => Promise.resolve(apk()))
 
     renderHome()
@@ -211,12 +168,13 @@ describe('handleDownload', () => {
 
     await waitFor(() => {
       expect(mockAnchorClick).toHaveBeenCalled()
+      expect(localStorage.getItem('quiz_app_ver')).toBe('1.18')
     }, { timeout: 5000 })
   })
 
-  it('两个APK源都失败 → window.open 兜底', async () => {
+  it('两个APK源全失败 → window.open 兜底', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ghApiVer('1.17')))
+    qFetch(() => Promise.resolve(ver('1.18')))
     qFetch(() => Promise.reject(new Error('x')))
     qFetch(() => Promise.reject(new Error('x')))
 

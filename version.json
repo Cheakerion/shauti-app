@@ -1,1 +1,1 @@
-{"version":"1.18","notes":"版本检测三保险：GitHub API(零缓存)→Raw源→CDN兜底，彻底解决缓存和网络问题"}
+{"version":"1.19","notes":"移除atob和AbortController依赖，修复老手机白屏兼容性"}

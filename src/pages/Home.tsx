@@ -36,42 +36,30 @@ export default function Home() {
   async function fetchVersionUrl(): Promise<string | null> {
     const ts = Date.now()
 
-    // 方案 1: GitHub API（零缓存，比 raw 源更容易通）
+    // 方案 1: GitHub API raw 模式（零缓存）
     try {
-      const ctrl = new AbortController()
-      const timer = setTimeout(() => ctrl.abort(), 5000)
       const res = await fetch(
-        `https://api.github.com/repos/Cheakerion/shauti-app/contents/version.json?t=${ts}`,
-        { signal: ctrl.signal, cache: 'no-store', headers: { Accept: 'application/vnd.github.v3+json' } }
+        `https://api.github.com/repos/Cheakerion/shauti-app/contents/version.json?ref=master&t=${ts}`,
+        { cache: 'no-store', headers: { Accept: 'application/vnd.github.raw+json' } }
       )
-      clearTimeout(timer)
-      if (res.ok) {
-        const data = await res.json()
-        return JSON.parse(atob(data.content)).version
-      }
+      if (res.ok) return (await res.json()).version
     } catch (_) { /* 下一个 */ }
 
     // 方案 2: raw.githubusercontent.com
     try {
-      const ctrl = new AbortController()
-      const timer = setTimeout(() => ctrl.abort(), 5000)
       const res = await fetch(
         `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
-        { signal: ctrl.signal, cache: 'no-store' }
+        { cache: 'no-store' }
       )
-      clearTimeout(timer)
       if (res.ok) return (await res.json()).version
     } catch (_) { /* 下一个 */ }
 
     // 方案 3: jsDelivr CDN（最后兜底）
     try {
-      const ctrl = new AbortController()
-      const timer = setTimeout(() => ctrl.abort(), 5000)
       const res = await fetch(
         `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
-        { signal: ctrl.signal, cache: 'no-store' }
+        { cache: 'no-store' }
       )
-      clearTimeout(timer)
       if (res.ok) return (await res.json()).version
     } catch (_) { /* 下一个 */ }
 
