@@ -6,7 +6,7 @@ const { execSync } = require('child_process');
 
 const PORT = 8888;
 const BANK_DIR = path.join(__dirname, '题库');
-const APK_PATH = path.join(__dirname, '刷题.apk');
+const APK_PATH = path.join(__dirname, 'releases', '刷题.apk');
 const HOST = '0.0.0.0'; // listen on all interfaces
 
 // Ensure bank directory exists

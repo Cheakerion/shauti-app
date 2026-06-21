@@ -167,7 +167,7 @@ export default function Home() {
   function handleDownload(ver: string) {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
-    window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/quiz.apk', '_blank')
+    window.open('https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/%E5%88%B7%E9%A2%98.apk', '_blank')
     // APK 只有 ~130KB，3 秒足够下完
     setTimeout(() => {
       setDownloading(false)

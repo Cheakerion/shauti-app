@@ -229,9 +229,13 @@ function parseInlineBlock(lines: string[], qType: QuestionType = 'choice'): Pars
   for (const raw of lines) {
     const line = raw.trim();
     if (line === '') continue;
-    if (/^解析\s*[:：]/.test(line)) { inExp = true; inOpts = false; explanation = line.replace(/^解析\s*[:：]\s*/, ''); continue; }
+    // 兼容微信粗体：**解析：** 或 **解析:** 都能匹配
+    const expMatch = line.match(/^(?:\*\*)?解析\s*[:：](?:\*\*)?\s*(.*)/);
+    if (expMatch) { inExp = true; inOpts = false; explanation = expMatch[1].trim(); continue; }
     if (inExp) { explanation += '\n' + line; continue; }
-    if (/^(正确)?答案\s*[:：]/.test(line)) { answer = line.replace(/^(正确)?答案\s*[:：]\s*/, '').trim(); inOpts = false; continue; }
+    // 兼容微信粗体：**正确答案: X** 或 **答案：X**
+    const ansMatch = line.match(/^(?:\*\*)?(?:正确)?答案\s*[:：]\s*(.+?)(?:\*\*)?$/i);
+    if (ansMatch) { answer = ansMatch[1].trim(); inOpts = false; continue; }
     const om = line.match(/^([A-E])\s*[.、)]\s*(.+)/);
     if (om) { inOpts = true; options.push({ label: om[1], text: om[2].trim() }); continue; }
     if (!inOpts) stemLines.push(line.replace(/^\d+\s*[.、)）]\s*/, '').replace(/^\*\*\d+\.?\*\s*/, ''));

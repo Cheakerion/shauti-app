@@ -21,7 +21,7 @@ def create_png(width, height, r, g, b):
 
     return sig + ihdr + idat + iend
 
-out_dir = os.path.join(os.path.dirname(__file__), 'public')
+out_dir = os.path.join(os.path.dirname(__file__), '..', 'public')
 os.makedirs(out_dir, exist_ok=True)
 
 for size in [192, 512]:

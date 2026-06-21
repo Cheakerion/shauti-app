@@ -1,1 +1,1 @@
-{"version":"1.12","notes":"适配新版Android (targetSdkVersion 36)、修复编译错误"}
+{"version":"1.13","notes":"修复解析器微信粗体兼容bug、增加自动化测试、CDN链接修正"}
