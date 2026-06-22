@@ -175,37 +175,11 @@ export default function Home() {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
 
-    const apkUrls = [
-      'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk',
-      'https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/%E5%88%B7%E9%A2%98.apk',
-    ]
-
-    for (const apkUrl of apkUrls) {
-      try {
-        const res = await fetch(apkUrl)
-        if (!res.ok) continue
-        const blob = await res.blob()
-
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = '刷题-v' + ver + '.apk'
-        a.style.display = 'none'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-
-        setDownloading(false)
-        setUpdateVer(null)
-        alert('下载完成，即将安装更新')
-        return
-      } catch (_) { /* 试下一个 URL */ }
-    }
-
-    // 两个源都挂了，回退 window.open
+    // 直接跳转触发下载，不 fetch（避免 WebView blob 跳转黑屏）
+    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk'
     setDownloading(false)
-    try { window.open(apkUrls[0], '_blank') } catch (_) {}
+    setUpdateVer(null)
+    window.location.href = apkUrl
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
