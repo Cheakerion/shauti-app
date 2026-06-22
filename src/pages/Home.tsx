@@ -194,7 +194,13 @@ export default function Home() {
   function confirmDownload() {
     setShowDownloadTip(false)
     setDownloadStarted(true)
-    window.location.href = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
+    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
+    const Android = (window as any).Android
+    if (Android?.downloadApk) {
+      Android.downloadApk(apkUrl)  // 走 App 原生网络，VPN 能覆盖
+    } else {
+      window.location.href = apkUrl
+    }
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
