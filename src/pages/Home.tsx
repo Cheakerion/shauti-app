@@ -176,7 +176,7 @@ export default function Home() {
     localStorage.setItem('quiz_app_ver', ver)
 
     // 直接跳转触发下载，不 fetch（避免 WebView blob 跳转黑屏）
-    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/%E5%88%B7%E9%A2%98.apk'
+    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
     setDownloading(false)
     setUpdateVer(null)
     window.location.href = apkUrl
