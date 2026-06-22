@@ -10,7 +10,6 @@ export default function Home() {
   const [dragover, setDragover] = useState(false)
   const [loading, setLoading] = useState(false)
   const [updateVer, setUpdateVer] = useState<string | null>(null)
-  const [downloading, setDownloading] = useState(false)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -186,38 +185,18 @@ export default function Home() {
     if (file) handleFile(file)
   }
 
-  const [showDownloadTip, setShowDownloadTip] = useState(false)
-  const [downloadStarted, setDownloadStarted] = useState(false)
-
   async function handleDownload(ver: string) {
-    setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
     localStorage.setItem('quiz_pending_update', ver)
-
-    setDownloading(false)
     setUpdateVer(null)
-    setShowDownloadTip(true)
-  }
 
-  const [showCopyUrl, setShowCopyUrl] = useState(false)
-
-  function confirmDownload() {
-    setShowDownloadTip(false)
     const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
     const AppUpdate = (window as any).AppUpdate
     if (AppUpdate?.download) {
       AppUpdate.download(apkUrl)
-      setDownloadStarted(true)
     } else {
-      // 接口不可用，显示复制链接
-      setShowCopyUrl(true)
+      window.location.href = apkUrl
     }
-  }
-
-  function copyApkUrl() {
-    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
-    navigator.clipboard?.writeText(apkUrl).catch(() => {})
-    alert('链接已复制，请在浏览器中粘贴打开下载')
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
@@ -248,11 +227,7 @@ export default function Home() {
       {updateVer && (
         <div className="update-banner">
           <span>发现新版本 v{updateVer}！</span>
-          {downloading ? (
-            <span style={{ color: '#2563eb', fontWeight: 600 }}>⏳ 下载中...</span>
-          ) : (
-            <button className="btn btn-sm" onClick={() => handleDownload(updateVer)}>下载更新</button>
-          )}
+          <button className="btn btn-sm" onClick={() => handleDownload(updateVer)}>下载更新</button>
           <button className="btn btn-sm btn-outline" onClick={() => setUpdateVer(null)}>✕</button>
         </div>
       )}
@@ -264,42 +239,6 @@ export default function Home() {
         </div>
       )}
 
-      {downloadStarted && (
-        <div className="update-banner" style={{ background: '#dbeafe', borderColor: '#2563eb' }}>
-          <span>📥 下载中，完成后下拉通知栏点击安装</span>
-        </div>
-      )}
-
-      {/* 复制链接弹窗 */}
-      {showCopyUrl && (
-        <div className="modal-overlay" onClick={() => setShowCopyUrl(false)}>
-          <div className="modal text-center" style={{ maxWidth: 340 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔗</div>
-            <h3>复制下载链接</h3>
-            <p style={{ color: '#64748b', margin: '12px 0', fontSize: '12px', wordBreak: 'break-all' }}>
-              https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk
-            </p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
-              <button className="btn btn-outline" onClick={() => setShowCopyUrl(false)}>关闭</button>
-              <button className="btn" onClick={copyApkUrl}>复制链接</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 下载中遮罩 */}
-      {downloading && (
-        <div className="modal-overlay">
-          <div className="modal text-center" style={{ maxWidth: 300 }}>
-            <div style={{ fontSize: '3rem', marginBottom: 12 }}>📥</div>
-            <h3>正在下载</h3>
-            <p style={{ color: '#64748b', marginTop: 8 }}>大小约 140KB，很快完成</p>
-            <div style={{ marginTop: 20, width: '100%', height: 4, background: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
-              <div className="progress-bar-indeterminate" style={{ height: '100%', width: '40%', background: '#2563eb', borderRadius: 2 }} />
-            </div>
-          </div>
-        </div>
-      )}
       <div className="home-header">
         <h1>📝 刷题</h1>
         <p>导入题库，开始刷题</p>
@@ -338,21 +277,6 @@ export default function Home() {
           </div>
         </div>
       ))}
-
-      {/* 下载提示弹窗 */}
-      {showDownloadTip && (
-        <div className="modal-overlay">
-          <div className="modal text-center" style={{ maxWidth: 320 }}>
-            <div style={{ fontSize: '2rem', marginBottom: 8 }}>📥</div>
-            <h3>开始下载更新</h3>
-            <p style={{ color: '#64748b', margin: '12px 0' }}>将跳转浏览器下载安装包</p>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
-              <button className="btn btn-outline" onClick={() => setShowDownloadTip(false)}>取消</button>
-              <button className="btn" onClick={confirmDownload}>开始下载</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 删除确认弹窗 */}
       {deleteTarget && (
