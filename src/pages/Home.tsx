@@ -43,34 +43,16 @@ export default function Home() {
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
   async function fetchVersionUrl(): Promise<string | null> {
     const ts = Date.now()
-
-    // 方案 1: GitHub API raw 模式（零缓存）
-    try {
-      const res = await fetch(
-        `https://api.github.com/repos/Cheakerion/shauti-app/contents/version.json?ref=master&t=${ts}`,
-        { cache: 'no-store', headers: { Accept: 'application/vnd.github.raw+json' } }
-      )
-      if (res.ok) return (await res.json()).version
-    } catch (_) { /* 下一个 */ }
-
-    // 方案 2: raw.githubusercontent.com
-    try {
-      const res = await fetch(
-        `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
-        { cache: 'no-store' }
-      )
-      if (res.ok) return (await res.json()).version
-    } catch (_) { /* 下一个 */ }
-
-    // 方案 3: jsDelivr CDN（最后兜底）
-    try {
-      const res = await fetch(
-        `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
-        { cache: 'no-store' }
-      )
-      if (res.ok) return (await res.json()).version
-    } catch (_) { /* 下一个 */ }
-
+    const urls = [
+      `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
+      `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
+    ]
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { cache: 'no-store' })
+        if (res.ok) return (await res.json()).version
+      } catch (_) { }
+    }
     return null
   }
 
