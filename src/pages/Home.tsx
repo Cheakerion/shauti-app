@@ -27,9 +27,15 @@ export default function Home() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  // 启动时自动检测更新
+  // 启动时自动检测更新 & 更新成功提示
   useEffect(() => {
     autoCheckUpdate()
+    // 检测上次下载的更新是否已安装
+    const pending = localStorage.getItem('quiz_pending_update')
+    if (pending) {
+      localStorage.removeItem('quiz_pending_update')
+      setTimeout(() => alert(`已更新到 v${pending}`), 500)
+    }
   }, [])
 
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
@@ -174,18 +180,13 @@ export default function Home() {
   async function handleDownload(ver: string) {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
+    localStorage.setItem('quiz_pending_update', ver)  // 用于启动时检测更新成功
 
-    // CDN 优先（国内不用翻），raw 兜底
-    const cdnUrl = 'https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/shuati.apk'
-    const rawUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
+    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
     setDownloading(false)
     setUpdateVer(null)
-    window.location.href = cdnUrl
-    // 如果 CDN 有缓存问题，3 秒后没反应就切 raw
-    setTimeout(() => {
-      if (document.hidden) return // 已经在下载了
-      window.location.href = rawUrl
-    }, 3000)
+    alert('即将跳转浏览器下载，安装完成后重新打开 App 即可')
+    window.location.href = apkUrl
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
