@@ -179,6 +179,7 @@ export default function Home() {
   }
 
   const [showDownloadTip, setShowDownloadTip] = useState(false)
+  const [downloadStarted, setDownloadStarted] = useState(false)
 
   async function handleDownload(ver: string) {
     setDownloading(true)
@@ -187,11 +188,12 @@ export default function Home() {
 
     setDownloading(false)
     setUpdateVer(null)
-    setShowDownloadTip(true)  // 显示自定义弹窗
+    setShowDownloadTip(true)
   }
 
   function confirmDownload() {
     setShowDownloadTip(false)
+    setDownloadStarted(true)
     window.location.href = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
   }
 
@@ -236,6 +238,12 @@ export default function Home() {
         <div className="update-banner" style={{ background: '#dcfce7', borderColor: '#16a34a' }}>
           <span style={{ color: '#16a34a' }}>✅ 已更新到 v{updateSuccess}</span>
           <button className="btn btn-sm btn-outline" onClick={() => setUpdateSuccess(null)}>✕</button>
+        </div>
+      )}
+
+      {downloadStarted && (
+        <div className="update-banner" style={{ background: '#dbeafe', borderColor: '#2563eb' }}>
+          <span>📥 已开始下载，请在浏览器中完成安装</span>
         </div>
       )}
 
