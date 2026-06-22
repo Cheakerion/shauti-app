@@ -42,6 +42,11 @@ export default function Home() {
 
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
   async function fetchVersionUrl(): Promise<string | null> {
+    // Java 侧已注入到 localStorage.quiz_latest_ver
+    const v = localStorage.getItem('quiz_latest_ver')
+    localStorage.removeItem('quiz_latest_ver')
+    if (v) return v
+    // 兜底：JS fetch
     const ts = Date.now()
     for (const url of [
       `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
