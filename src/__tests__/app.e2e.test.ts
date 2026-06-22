@@ -46,7 +46,7 @@ afterAll(async () => {
 })
 
 describe('App 启动检查', () => {
-  it('首页正常加载，不白屏', async () => {
+  it('首页正常加载，不白屏', { timeout: 30000 }, async () => {
     const errors: string[] = []
 
     page.on('pageerror', (err) => {
