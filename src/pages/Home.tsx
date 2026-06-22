@@ -185,7 +185,7 @@ export default function Home() {
     if (file) handleFile(file)
   }
 
-  async function handleDownload(ver: string) {
+  function handleDownload(ver: string) {
     localStorage.setItem('quiz_app_ver', ver)
     localStorage.setItem('quiz_pending_update', ver)
     setUpdateVer(null)
