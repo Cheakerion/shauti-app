@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getQuestionsByBank, saveAnswerRecord, db } from '../db'
+import { getQuestionsByBank, saveAnswerRecord, getWrongQuestionIds } from '../db'
 import type { Question, QuizMode, AnswerRecord } from '../types'
 import ProgressBar from '../components/ProgressBar'
 
 type PlayMode = 'quick' | 'normal' | 'memorize'
+type FilterMode = 'all' | 'done' | 'wrong' | 'undone'
 
 export default function Quiz() {
   const { bankId } = useParams<{ bankId: string }>()
@@ -24,6 +25,8 @@ export default function Quiz() {
   const [historyAnswers, setHistoryAnswers] = useState<Map<string, string>>(new Map())
   const [showQuestionList, setShowQuestionList] = useState(false)
   const [autoAdvancing, setAutoAdvancing] = useState(false)
+  const [filterMode, setFilterMode] = useState<FilterMode>('all')
+  const [wrongIds, setWrongIds] = useState<Set<string>>(new Set())
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const autoAdvTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -44,6 +47,7 @@ export default function Quiz() {
           setShuffledIndices(s.shuffledIndices || [])
           setStartTime(s.startTime || Date.now())
           if (s.historyAnswers) setHistoryAnswers(new Map(Object.entries(s.historyAnswers)))
+          if (s.filterMode) setFilterMode(s.filterMode as FilterMode)
           return
         } catch (e) {}
       }
@@ -54,24 +58,42 @@ export default function Quiz() {
       }
       setShuffledIndices(indices)
     })
+    // 加载错题 ID 列表
+    if (bankId) {
+      getWrongQuestionIds(bankId).then(ids => setWrongIds(new Set(ids)))
+    }
   }, [bankId])
+
+  // 根据筛选模式过滤题目
+  const filteredQuestions = useMemo(() => {
+    switch (filterMode) {
+      case 'done':
+        return questions.filter(q => historyAnswers.has(q.id))
+      case 'wrong':
+        return questions.filter(q => wrongIds.has(q.id))
+      case 'undone':
+        return questions.filter(q => !historyAnswers.has(q.id))
+      default:
+        return questions
+    }
+  }, [questions, filterMode, historyAnswers, wrongIds])
 
   useEffect(() => {
     if (!bankId || questions.length === 0) return
     localStorage.setItem(sessionKey, JSON.stringify({
-      currentIndex, mode, playMode, shuffledIndices, startTime,
+      currentIndex, mode, playMode, shuffledIndices, startTime, filterMode,
       historyAnswers: Object.fromEntries(historyAnswers),
     }))
-  }, [currentIndex, mode, playMode, historyAnswers, shuffledIndices, startTime, bankId, questions.length])
+  }, [currentIndex, mode, playMode, historyAnswers, shuffledIndices, startTime, bankId, filterMode, filteredQuestions.length])
 
   // Cleanup auto-advance timer on unmount
   useEffect(() => { return () => { if (autoAdvTimer.current) clearTimeout(autoAdvTimer.current) } }, [])
 
   const question = useMemo(() => {
-    if (questions.length === 0) return null
+    if (filteredQuestions.length === 0) return null
     const idx = mode === 'sequential' ? currentIndex : shuffledIndices[currentIndex]
-    return questions[idx] || null
-  }, [questions, currentIndex, mode, shuffledIndices])
+    return filteredQuestions[idx] || null
+  }, [filteredQuestions, currentIndex, mode, shuffledIndices])
 
   useEffect(() => {
     if (question) {
@@ -81,6 +103,17 @@ export default function Quiz() {
       setAutoAdvancing(false)
     }
   }, [currentIndex, mode, shuffledIndices, question?.id])
+
+  // 筛选切换时重新洗牌
+  useEffect(() => {
+    const indices = Array.from({ length: filteredQuestions.length }, (_, i) => i)
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]]
+    }
+    setShuffledIndices(indices)
+    setCurrentIndex(0)
+  }, [filterMode])
 
   const questionStatus = useMemo(() => {
     const map = new Map<string, boolean | null>()
@@ -102,20 +135,13 @@ export default function Quiz() {
     setAllDone(false)
     setAutoAdvancing(false)
     setStartTime(Date.now())
-    const indices = Array.from({ length: questions.length }, (_, i) => i)
+    const len = filterMode === 'all' ? questions.length : filteredQuestions.length
+    const indices = Array.from({ length: len }, (_, i) => i)
     for (let i = indices.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [indices[i], indices[j]] = [indices[j], indices[i]]
     }
     setShuffledIndices(indices)
-  }
-
-  async function clearAndRestart() {
-    if (!bankId) return
-    if (!confirm('确定清除该题库的所有答题记录？\n所有做题记录和错题本都将清空。')) return
-    localStorage.removeItem(sessionKey)
-    await db.answerRecords.where('bankId').equals(bankId).delete()
-    fullRestart()
   }
 
   const submitAnswer = useCallback(async (answer: string) => {
@@ -127,6 +153,7 @@ export default function Quiz() {
       questionId: question.id, bankId: question.bankId,
       userAnswer: answer, isCorrect, timestamp: Date.now(),
     }
+    if (!isCorrect) setWrongIds(prev => new Set(prev).add(question.id))
     setRecords((prev) => [...prev, record])
     setHistoryAnswers((prev) => new Map(prev).set(question.id, answer))
     await saveAnswerRecord(record)
@@ -171,7 +198,7 @@ export default function Quiz() {
       if (dx < 0) nextQuestion()
       else prevQuestion()
     }
-  }, [currentIndex, questions.length, allDone])
+  }, [currentIndex, filteredQuestions.length, allDone])
 
   function prevQuestion() {
     if (autoAdvTimer.current) { clearTimeout(autoAdvTimer.current); autoAdvTimer.current = null }
@@ -182,7 +209,7 @@ export default function Quiz() {
   function nextQuestion() {
     if (autoAdvTimer.current) { clearTimeout(autoAdvTimer.current); autoAdvTimer.current = null }
     setAutoAdvancing(false)
-    if (currentIndex >= questions.length - 1) {
+    if (currentIndex >= filteredQuestions.length - 1) {
       setAllDone(true)
       setShowComplete(true)
       return
@@ -216,7 +243,6 @@ export default function Quiz() {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn" onClick={fullRestart}>🔄 重新开始</button>
-            <button className="btn btn-outline" onClick={() => navigate(`/wrong/${bankId}`)}>📋 查看错题</button>
             <button className="btn btn-outline" onClick={() => navigate('/')}>🏠 返回首页</button>
           </div>
         </div>
@@ -230,7 +256,7 @@ export default function Quiz() {
     <div>
       <div className="navbar">
         <a className="back" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>← 返回</a>
-        <span className="title">刷题 ({currentIndex + 1}/{questions.length})</span>
+        <span className="title">刷题 ({currentIndex + 1}/{filteredQuestions.length})</span>
         <button className="btn btn-sm btn-outline" onClick={() => setShowQuestionList(true)}>📋</button>
       </div>
 
@@ -257,18 +283,33 @@ export default function Quiz() {
           📖背题</button>
       </div>
 
+      {/* 分类筛选 */}
+      <div className="mode-toggle" style={{ marginBottom: 12 }}>
+        <button className={filterMode === 'all' ? 'active' : ''}
+          onClick={() => { setFilterMode('all'); setCurrentIndex(0); }}>
+          全部</button>
+        <button className={filterMode === 'undone' ? 'active' : ''}
+          onClick={() => { setFilterMode('undone'); setCurrentIndex(0); }}>
+          未做</button>
+        <button className={filterMode === 'wrong' ? 'active' : ''}
+          onClick={() => { setFilterMode('wrong'); setCurrentIndex(0); }}>
+          做错</button>
+        <button className={filterMode === 'done' ? 'active' : ''}
+          onClick={() => { setFilterMode('done'); setCurrentIndex(0); }}>
+          已做</button>
+      </div>
+
       {/* 重置 */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
         <div style={{ flex: 1 }} />
         <button className="btn btn-sm btn-outline" onClick={fullRestart}>🔄 重新开始</button>
-        <button className="btn btn-sm btn-outline" style={{ color: '#dc2626', borderColor: '#dc2626' }} onClick={clearAndRestart}>🗑 清除记录</button>
       </div>
 
-      <ProgressBar current={currentIndex + (answered ? 1 : 0)} total={questions.length} />
+      <ProgressBar current={currentIndex + (answered ? 1 : 0)} total={filteredQuestions.length} />
 
       <div className="quiz-stats">
         <span>正确 <span style={{ color: '#16a34a' }}>{stats.correct}</span> 错误 <span style={{ color: '#dc2626' }}>{stats.wrong}</span></span>
-        <span className="count">{currentIndex + 1} / {questions.length}</span>
+        <span className="count">{currentIndex + 1} / {filteredQuestions.length}</span>
       </div>
 
       {question && (
@@ -339,7 +380,7 @@ export default function Quiz() {
       <div className="quiz-actions">
         <button className="btn btn-outline" disabled={currentIndex === 0} onClick={prevQuestion}>← 上一题</button>
         <button className="btn" style={{ flex: 1 }} disabled={answered ? false : playMode === 'normal' && pendingAnswer === null ? false : false} onClick={nextQuestion}>
-          {allDone ? '查看成绩' : currentIndex >= questions.length - 1 ? '完成' : '下一题 →'}
+          {allDone ? '查看成绩' : currentIndex >= filteredQuestions.length - 1 ? '完成' : '下一题 →'}
         </button>
       </div>
 
@@ -349,15 +390,14 @@ export default function Quiz() {
           <div className="modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
             <h3>选择题目</h3>
             <div className="question-grid">
-              {questions.map((_, i) => {
-                const q = questions[i]
+              {filteredQuestions.map((q, i) => {
                 const status = questionStatus.get(q.id)
                 let dotCls = 'q-dot'
                 if (status === true) dotCls += ' q-correct'
                 else if (status === false) dotCls += ' q-wrong'
                 if (i === currentIndex) dotCls += ' q-current'
                 return (
-                  <button key={i} className={dotCls} onClick={() => jumpToQuestion(i)}>
+                  <button key={q.id} className={dotCls} onClick={() => jumpToQuestion(i)}>
                     {i + 1}
                   </button>
                 )

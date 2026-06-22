@@ -291,7 +291,6 @@ export default function Home() {
           <div className="bank-meta" style={{ marginTop: 4 }}>题型: {getTypeLabel(bank.id)}</div>
           <div className="bank-actions">
             <button className="btn" onClick={() => navigate(getQuizRoute(bank.id))}>开始刷题</button>
-            <button className="btn btn-outline btn-sm" onClick={() => navigate(`/wrong/${bank.id}`)}>错题本</button>
             <button className="btn btn-outline btn-sm" style={{ color: '#dc2626', borderColor: '#dc2626' }}
               onClick={() => setDeleteTarget({ id: bank.id, title: bank.title })}>删除</button>
           </div>

@@ -40,12 +40,11 @@ if ($LASTEXITCODE -ne 0) { throw "npm build failed" }
 Write-Host "[2/5] Copying assets..." -ForegroundColor Yellow
 $AssetsDir = "$ApkBuildDir\assets"
 
-# 清空旧 assets（不能用 Remove-Item，沙箱会拦中文路径）
-cmd /c "rmdir /S /Q `"$AssetsDir`"" 2>$null
+# 确保目录存在
 New-Item -ItemType Directory -Force $AssetsDir | Out-Null
 
 # xcopy 保留子目录结构（Copy-Item -Recurse * 会拍平子目录）
-cmd /c "xcopy /E /Y /Q `"$DistDir\*`" `"$AssetsDir\`"" | Out-Null
+cmd /c "xcopy /E /Y /I /Q `"$DistDir\*`" `"$AssetsDir\`""
 
 # ============================================================
 # Step 3: Compile Java -> DEX + Package base APK with aapt
@@ -80,10 +79,10 @@ Copy-Item $BaseApk $WithDexApk -Force
 
 # 复制到临时目录（避免 Python 命令行编码问题）
 $TmpDir = "C:\Users\70921\AppData\Local\Temp\quiz_build"
-cmd /c "rmdir /S /Q `"$TmpDir`"" 2>$null
+try { Remove-Item -Recurse -Force $TmpDir -ErrorAction Stop } catch { }
 New-Item -ItemType Directory -Force $TmpDir | Out-Null
 New-Item -ItemType Directory -Force "$TmpDir\assets" | Out-Null
-cmd /c "xcopy /E /Y /Q `"$AssetsDir\*`" `"$TmpDir\assets\`"" | Out-Null
+cmd /c "xcopy /E /Y /I /Q `"$AssetsDir\*`" `"$TmpDir\assets\`""
 Copy-Item "$ObjDir\classes.dex" "$TmpDir\classes.dex"
 Copy-Item $WithDexApk "$TmpDir\base.apk"
 
@@ -108,7 +107,7 @@ if ($LASTEXITCODE -ne 0) { throw "Failed to add dex/assets" }
 
 # 复制回原位置
 Copy-Item "$TmpDir\base.apk" $WithDexApk -Force
-cmd /c "rmdir /S /Q `"$TmpDir`"" 2>$null
+try { Remove-Item -Recurse -Force $TmpDir -ErrorAction Stop } catch { }
 
 # ============================================================
 # Step 4: Align (MUST be before signing!)
@@ -138,6 +137,6 @@ Write-Host "Size: $((Get-Item $OutApk).Length) bytes" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 
 # Cleanup
-cmd /c "rmdir /S /Q `"$ClassesDir`"" 2>$null
-cmd /c "rmdir /S /Q `"$ObjDir`"" 2>$null
+try { Remove-Item -Recurse -Force $ClassesDir -ErrorAction Stop } catch { }
+try { Remove-Item -Recurse -Force $ObjDir -ErrorAction Stop } catch { }
 Remove-Item $BaseApk, $WithDexApk, $AlignedApk -Force -ErrorAction SilentlyContinue
