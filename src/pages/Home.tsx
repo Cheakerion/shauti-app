@@ -31,11 +31,17 @@ export default function Home() {
 
   // 启动时自动检测更新 & 更新成功提示
   useEffect(() => {
-    autoCheckUpdate()
     const pending = localStorage.getItem('quiz_pending_update')
     if (pending) {
-      localStorage.removeItem('quiz_pending_update')
-      setUpdateSuccess(pending)
+      // 对比服务器版本，一致才显示成功
+      fetchVersionUrl().then(latest => {
+        if (latest === pending) {
+          setUpdateSuccess(pending)
+        }
+        localStorage.removeItem('quiz_pending_update')
+      })
+    } else {
+      autoCheckUpdate()
     }
   }, [])
 
