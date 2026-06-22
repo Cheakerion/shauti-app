@@ -249,7 +249,7 @@ export default function Home() {
 
       {downloadStarted && (
         <div className="update-banner" style={{ background: '#dbeafe', borderColor: '#2563eb' }}>
-          <span>📥 已开始下载，请在浏览器中完成安装</span>
+          <span>📥 下载中，完成后下拉通知栏点击安装</span>
         </div>
       )}
 
