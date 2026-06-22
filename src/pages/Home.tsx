@@ -221,7 +221,7 @@ export default function Home() {
       {updateVer && (
         <div className="update-banner">
           <span>发现新版本 v{updateVer}！</span>
-          <button className="btn btn-sm" onClick={() => handleDownload(updateVer)}>下载更新</button>
+          <button className="btn btn-sm" onClick={() => { if (confirm(`下载 v${updateVer}？`)) handleDownload(updateVer) }}>下载更新</button>
           <button className="btn btn-sm btn-outline" onClick={() => setUpdateVer(null)}>✕</button>
         </div>
       )}
