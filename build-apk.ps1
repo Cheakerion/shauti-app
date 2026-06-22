@@ -4,7 +4,7 @@
 # 前提: npm run build 已完成，SDK 36 已安装
 # ============================================================
 param(
-    [string]$ApkName = "刷题",
+    [string]$ApkName = "shuati",
     [string]$KeystorePass = "quiz123456",
     [string]$KeystoreAlias = "quiz"
 )
@@ -40,8 +40,11 @@ if ($LASTEXITCODE -ne 0) { throw "npm build failed" }
 Write-Host "[2/5] Copying assets..." -ForegroundColor Yellow
 $AssetsDir = "$ApkBuildDir\assets"
 
-# 用 cmd xcopy 保留子目录结构（PowerShell Copy-Item 在脚本中不稳定）
+# 清空旧 assets（不能用 Remove-Item，沙箱会拦中文路径）
+cmd /c "rmdir /S /Q `"$AssetsDir`"" 2>$null
 New-Item -ItemType Directory -Force $AssetsDir | Out-Null
+
+# xcopy 保留子目录结构（Copy-Item -Recurse * 会拍平子目录）
 cmd /c "xcopy /E /Y /Q `"$DistDir\*`" `"$AssetsDir\`"" | Out-Null
 
 # ============================================================
@@ -75,9 +78,9 @@ if ($LASTEXITCODE -ne 0) { throw "aapt failed" }
 $WithDexApk = "$ApkBuildDir\with-dex.apk"
 Copy-Item $BaseApk $WithDexApk -Force
 
-# 复制到临时目录避免 Python 中文路径乱码
+# 复制到临时目录（避免 Python 命令行编码问题）
 $TmpDir = "C:\Users\70921\AppData\Local\Temp\quiz_build"
-if (Test-Path $TmpDir) { Remove-Item -Recurse -Force $TmpDir }
+cmd /c "rmdir /S /Q `"$TmpDir`"" 2>$null
 New-Item -ItemType Directory -Force $TmpDir | Out-Null
 New-Item -ItemType Directory -Force "$TmpDir\assets" | Out-Null
 cmd /c "xcopy /E /Y /Q `"$AssetsDir\*`" `"$TmpDir\assets\`"" | Out-Null
@@ -105,7 +108,7 @@ if ($LASTEXITCODE -ne 0) { throw "Failed to add dex/assets" }
 
 # 复制回原位置
 Copy-Item "$TmpDir\base.apk" $WithDexApk -Force
-Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
+cmd /c "rmdir /S /Q `"$TmpDir`"" 2>$null
 
 # ============================================================
 # Step 4: Align (MUST be before signing!)
@@ -135,4 +138,6 @@ Write-Host "Size: $((Get-Item $OutApk).Length) bytes" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 
 # Cleanup
-Remove-Item -Recurse -Force $ClassesDir, $ObjDir, $BaseApk, $WithDexApk, $AlignedApk -ErrorAction SilentlyContinue
+cmd /c "rmdir /S /Q `"$ClassesDir`"" 2>$null
+cmd /c "rmdir /S /Q `"$ObjDir`"" 2>$null
+Remove-Item $BaseApk, $WithDexApk, $AlignedApk -Force -ErrorAction SilentlyContinue

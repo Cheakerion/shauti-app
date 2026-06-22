@@ -1,1 +1,1 @@
-{"version":"1.23","notes":"修复构建脚本Copy-Item拍平子目录bug（换xcopy）；恢复PWA；三保险版本检测+下载不跳出"}
+{"version":"1.24","notes":"修复WebView白屏(去error监听+xcopy子目录)；整理项目/重写文档；ADB直装"}
