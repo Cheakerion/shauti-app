@@ -34,16 +34,42 @@ Write-Host "[1/5] Building web app..." -ForegroundColor Yellow
 if ($LASTEXITCODE -ne 0) { throw "npm build failed" }
 
 # ============================================================
-# Step 2: Copy assets to apk-build
+# Step 1.5: Inline assets for https:// origin loading
+# ============================================================
+Write-Host "[1.5/5] Inlining assets..." -ForegroundColor Yellow
+$InlineHtml = "$DistDir\inline.html"
+$HtmlContent = Get-Content "$DistDir\index.html" -Raw -Encoding UTF8
+
+# Inline JS
+$HtmlContent = [regex]::Replace($HtmlContent, '<script[^>]*src="([^"]*\.js)"[^>]*></script>', {
+    $jsFile = Join-Path $DistDir $args[0].Groups[1].Value
+    $js = Get-Content $jsFile -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    if ($js) { return "<script>$js</script>" }
+    return $args[0].Value
+})
+# Inline CSS
+$HtmlContent = [regex]::Replace($HtmlContent, '<link[^>]*href="([^"]*\.css)"[^>]*>', {
+    $cssFile = Join-Path $DistDir $args[0].Groups[1].Value
+    $css = Get-Content $cssFile -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+    if ($css) { return "<style>$css</style>" }
+    return $args[0].Value
+})
+# Remove SW registration (runs after inlining, not needed)
+$HtmlContent = $HtmlContent -replace '<script[^>]*registerSW[^>]*></script>', ''
+# Remove manifest link
+$HtmlContent = $HtmlContent -replace '<link rel="manifest"[^>]*>', ''
+# Remove favicon link (has data: URL that confuses regex)
+$HtmlContent = $HtmlContent -replace '<link rel="icon"[^>]*>', ''
+Set-Content $InlineHtml $HtmlContent -Encoding UTF8
+Write-Host "Inline HTML: $((Get-Item $InlineHtml).Length) bytes"
+
+# ============================================================
+# Step 2: Copy inline HTML to apk-build
 # ============================================================
 Write-Host "[2/5] Copying assets..." -ForegroundColor Yellow
 $AssetsDir = "$ApkBuildDir\assets"
-
-# 确保目录存在
 New-Item -ItemType Directory -Force $AssetsDir | Out-Null
-
-# xcopy 保留子目录结构（Copy-Item -Recurse * 会拍平子目录）
-cmd /c "xcopy /E /Y /I /Q `"$DistDir\*`" `"$AssetsDir\`""
+Copy-Item $InlineHtml "$AssetsDir\index.html" -Force
 
 # ============================================================
 # Step 3: Compile Java -> DEX + Package base APK with aapt

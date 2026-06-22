@@ -1,2 +1,2 @@
-{"version":"1.64","notes":"Java网络层+CORS修复+DevTools验证"}}
+{"version":"1.65","notes":"内联HTML+https origin，fetch无CORS"}}
 

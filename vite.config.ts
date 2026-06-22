@@ -5,6 +5,16 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   base: './',
   plugins: [
+    // Strip favicon and SW from final HTML (inline APK doesn't need them)
+    {
+      name: 'clean-html',
+      transformIndexHtml(html) {
+        return html
+          .replace(/<link rel="icon"[^>]*\/?>/g, '')
+          .replace(/<script[^>]*registerSW[^>]*><\/script>/g, '')
+          .replace(/<link rel="manifest"[^>]*>/g, '')
+      },
+    },
     react(),
     VitePWA({
       registerType: 'autoUpdate',
