@@ -33,12 +33,14 @@ export default function Home() {
   useEffect(() => {
     const pending = localStorage.getItem('quiz_pending_update')
     if (pending) {
-      // 对比服务器版本，一致才显示成功
+      // 对比服务器版本确认更新成功
       fetchVersionUrl().then(latest => {
-        if (latest === pending) {
+        if (latest && latest === pending) {
           setUpdateSuccess(pending)
         }
+      }).catch(() => {}).finally(() => {
         localStorage.removeItem('quiz_pending_update')
+        autoCheckUpdate()
       })
     } else {
       autoCheckUpdate()

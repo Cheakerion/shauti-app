@@ -124,7 +124,8 @@ git commit && git push origin master
 | 9 | 版本检查永远提示更新 | localStorage 空值导致版本比较误报 | 初始化时 `cur = latestVer` |
 | 10 | 签名后安装失败 | zipalign 在签名后执行破坏签名块 | 先 zipalign 再 apksigner |
 | 11 | CDN 版本检测慢 | jsDelivr `@master` 缓存刷新慢 | GitHub API（零缓存）→ raw → CDN 三保险 |
-| 12 | 下载更新交互黑屏 | `window.open`/`location.href`/`Intent` 都会跳出 App | DownloadManager 后台下载（待验证） |
+| 12 | 下载更新交互黑屏 | `window.open`/`location.href`/`Intent` 都会跳出 App | DownloadManager 后台下载 |
+| 13 | 更新后无成功提示 | localStorage 跨安装不可靠；`fetchVersionUrl` 失败时 Promise 未消费 | 改用 `.finally()` 清理 + 网络失败时也提示 |
 
 ### WebView 兼容
 | # | 问题 | 原因 |
