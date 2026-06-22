@@ -29,6 +29,8 @@ export default function Home() {
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null)
 
   const [downloadDone, setDownloadDone] = useState(false)
+  const [displayVer, setDisplayVer] = useState(localStorage.getItem('quiz_app_ver') || '1.0')
+  const [displayBuild, setDisplayBuild] = useState(localStorage.getItem('quiz_latest_build') || '0')
 
   // 启动时自动检测更新 & 更新成功提示
   useEffect(() => {
@@ -37,7 +39,10 @@ export default function Home() {
       localStorage.removeItem('quiz_pending_update')
       setUpdateSuccess(pending)
     }
-    autoCheckUpdate()
+    autoCheckUpdate().then(() => {
+      setDisplayVer(localStorage.getItem('quiz_app_ver') || '1.0')
+      setDisplayBuild(localStorage.getItem('quiz_latest_build') || '0')
+    })
   }, [])
 
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
@@ -57,6 +62,8 @@ export default function Home() {
     if (latestVer && newer(latestVer, cur || '0')) {
       setUpdateVer(latestVer)
     }
+    setDisplayVer(localStorage.getItem('quiz_app_ver') || '1.0')
+    setDisplayBuild(localStorage.getItem('quiz_latest_build') || '0')
   }
 
   // Receive file from Android WebView (WeChat share, file open, etc.)
@@ -170,7 +177,7 @@ export default function Home() {
       )}
 
       <div className="home-header">
-        <h1>📝 刷题 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>v{localStorage.getItem('quiz_app_ver') || '1.0'} Build {localStorage.getItem('quiz_latest_build') || '0'}</span></h1>
+        <h1>📝 刷题 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>v{displayVer} Build {displayBuild}</span></h1>
         <p>导入题库，开始刷题</p>
         <button className="btn btn-sm btn-outline mt-8" onClick={checkUpdate}>🔄 检查更新</button>
       </div>
