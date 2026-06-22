@@ -42,21 +42,10 @@ export default function Home() {
 
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
   async function fetchVersionUrl(): Promise<string | null> {
-    // Java 侧已注入到 localStorage.quiz_latest_ver
+    // 读 Java onPageFinished 注入的版本
     const v = localStorage.getItem('quiz_latest_ver')
     localStorage.removeItem('quiz_latest_ver')
     if (v) return v
-    // 兜底：JS fetch
-    const ts = Date.now()
-    for (const url of [
-      `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
-      `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
-    ]) {
-      try {
-        const res = await fetch(url, { cache: 'no-store' })
-        if (res.ok) return (await res.json()).version
-      } catch (_) { }
-    }
     return null
   }
 
@@ -124,59 +113,14 @@ export default function Home() {
   }
 
   async function checkUpdate() {
-    const Android = (window as any).Android
-    let cur = localStorage.getItem('quiz_app_ver') || ''
-
-    const getAndroidVer = (): string | null => {
-      try {
-        if (Android?.checkVersion) {
-          const v = Android.checkVersion()
-          if (v && !v.startsWith('ERR:')) return v
-        }
-      } catch (e) {}
-      return null
-    }
-
-    const [androidVer, fetchVer] = await Promise.all([
-      Promise.resolve(getAndroidVer()),
-      fetchVersionUrl(),
-    ])
-
-    let latestVer = ''
-    for (const v of [androidVer, fetchVer]) {
-      if (v && newer(v, latestVer || '0')) latestVer = v
-    }
-
-    if (!latestVer) { alert('检测失败：无法获取版本信息，请检查网络'); return }
-    if (!cur && latestVer) { localStorage.setItem('quiz_app_ver', latestVer); cur = latestVer }
-
-    if (newer(latestVer, cur || '0')) {
-      if (confirm(`发现 v${latestVer} (当前${cur||'?'})\n下载？`)) {
-        handleDownload(latestVer)
-      }
-    } else {
-      alert(`已是最新 (v${latestVer})`)
-    }
+    // 走 Java 原生弹窗
+    location.href = 'quiz://check-update'
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault(); setDragover(false)
     const file = e.dataTransfer.files[0]
     if (file) handleFile(file)
-  }
-
-  function handleDownload(ver: string) {
-    localStorage.setItem('quiz_app_ver', ver)
-    localStorage.setItem('quiz_pending_update', ver)
-    setDownloadDone(true)
-
-    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
-    const App = (window as any).App
-    if (App?.download) {
-      App.download(apkUrl)
-    } else {
-      window.location.href = apkUrl
-    }
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
