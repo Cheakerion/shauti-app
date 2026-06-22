@@ -104,16 +104,35 @@ git add releases/刷题.apk version.json
 git commit && git push origin master
 ```
 
-## 踩坑记录
+## Bug 记录
 
-1. **白屏 — Copy-Item -Recurse * 拍平子目录**：`dist/assets/index-*.js` 被拍到 `apk-build/assets/` 根目录，HTML 引用 `./assets/` 找不到文件。修：换 `cmd /c xcopy /E`
-2. **白屏 — main.tsx window.addEventListener('error')**：WebView 里 React 挂载前触发错误事件，替换了 #root 导致无法渲染。修：去掉全局错误监听，只用 React 内 try/catch
-3. **Python 中文路径乱码**：`python -c` 通过命令行传参时，中文路径被 GBK 编码损坏。修：写脚本到临时 ASCII 目录再执行
-4. **D8 编译失败**：内部类 `MainActivity$1.class` 未传给 d8。修：`Get-ChildItem *.class | % FullName` 全部传入
-5. **安装包签名无效**：zipalign 在签名之后破坏 v2/v3 签名块。必须先对齐再签名
-6. **版本检查误报**：localStorage 空值导致 `newer(v1.12, '0')` 永远 true。修：初始化时 `cur = latestVer`
-7. **删除按钮无效**：WebView 中 `confirm()` 不稳定。修：自定义 Modal 弹窗
-8. **JS 文件两次出现在 APK**：构建脚本不清旧文件导致累积。修：xcopy 前 `cmd /c rmdir` 清空
+### 构建链
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| 1 | APK 白屏 | `Copy-Item -Recurse "dist\*"` 拍平 `dist/assets/` 子目录，HTML 的 `./assets/` 引用找不到 JS 文件 | `cmd /c xcopy /E /I /Y` 保留目录结构 |
+| 2 | APK 白屏 | `main.tsx` 的 `window.addEventListener('error')` 在 WebView 中 React 挂载前触发，替换了 `#root` | 删掉全局错误监听 |
+| 3 | APK 12KB（无素材） | Python `os.walk` 中文路径在命令行中被 GBK 编码损坏 | 写脚本到 `C:\Users\...\Temp\` ASCII 目录 |
+| 4 | APK 膨胀/累积旧文件 | `xcopy` 不清旧文件，多次构建的 JS 共存 | xcopy 前 `cmd /c rmdir` 清空 |
+| 5 | `javac` 编译失败 | `MainActivity$1.class` 内部类未传给 `d8` | `Get-ChildItem *.class` 全部传入 |
+| 6 | Python `SyntaxError` | f-string 表达式不能含反斜杠 | 路径先赋值给变量再引用 |
+| 7 | 构建输出文件名乱码 | PowerShell 处理中文路径编码问题 | APK 输出名改为 ASCII `shuati.apk` |
+
+### 运行时
+| # | 现象 | 根因 | 修复 |
+|---|---|---|---|
+| 8 | WebView `confirm()` 不弹 | WebView 中 `confirm()` 不稳定 | 自定义 Modal 弹窗 |
+| 9 | 版本检查永远提示更新 | localStorage 空值导致版本比较误报 | 初始化时 `cur = latestVer` |
+| 10 | 签名后安装失败 | zipalign 在签名后执行破坏签名块 | 先 zipalign 再 apksigner |
+| 11 | CDN 版本检测慢 | jsDelivr `@master` 缓存刷新慢 | GitHub API（零缓存）→ raw → CDN 三保险 |
+| 12 | 下载更新交互黑屏 | `window.open`/`location.href`/`Intent` 都会跳出 App | DownloadManager 后台下载（待验证） |
+
+### WebView 兼容
+| # | 问题 | 原因 |
+|---|---|---|
+| - | `alert()` / `confirm()` | 不可靠，用自定义 Modal |
+| - | `window.addEventListener('error')` | 干扰 React 挂载 |
+| - | `file:///android_asset/` | ES module 需要 `setAllowFileAccessFromFileURLs(true)` |
+| - | `targetSdkVersion 36` | 部分 API 被弃用但保留向后兼容 |
 
 ## 手机连接（本地服务器）
 
