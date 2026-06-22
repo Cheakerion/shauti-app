@@ -198,7 +198,7 @@ export default function Home() {
 
         setDownloading(false)
         setUpdateVer(null)
-        alert('下载完成，请在通知栏点击安装')
+        alert('下载完成，即将安装更新')
         return
       } catch (_) { /* 试下一个 URL */ }
     }
