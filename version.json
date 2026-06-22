@@ -1,2 +1,2 @@
-{"version":"1.63","notes":"Java侧网络请求获取版本，彻底无CORS"}}
+{"version":"1.64","notes":"Java网络层+CORS修复+DevTools验证"}}
 
