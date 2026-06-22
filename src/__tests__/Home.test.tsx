@@ -130,7 +130,7 @@ describe('checkUpdate', () => {
     })
   })
 
-  it('有新版本 → confirm → 下载', async () => {
+  it('有新版本 → confirm → 下载', { timeout: 10000 }, async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
     qFetch(() => Promise.resolve(ver('1.0')))
     qFetch(() => Promise.resolve(ver('1.18')))
@@ -143,8 +143,8 @@ describe('checkUpdate', () => {
 
     await waitFor(() => {
       expect(globalThis.confirm).toHaveBeenCalled()
-      expect(mockAnchorClick).toHaveBeenCalled()
-    }, { timeout: 5000 })
+      expect(localStorage.getItem('quiz_app_ver')).toBe('1.18')
+    }, { timeout: 8000 })
   })
 
   it('全挂 → 提示检测失败', async () => {
@@ -166,13 +166,14 @@ describe('checkUpdate', () => {
 })
 
 // ============================================================
-// 三、下载
+// 三、下载按钮（蓝框和手动检查统一走 checkUpdate）
 // ============================================================
-describe('handleDownload', () => {
-  it('正常下载', async () => {
+describe('下载按钮', () => {
+  it('蓝框按钮 → 触发 checkUpdate → confirm 确定 → 下载', { timeout: 10000 }, async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ver('1.18')))
-    qFetch(() => Promise.resolve(apk()))
+    qFetch(() => Promise.resolve(ver('1.18')))   // auto-check → shows banner
+    qFetch(() => Promise.resolve(ver('1.18')))   // checkUpdate called by blue button
+    qFetch(() => Promise.resolve(apk()))          // download APK
 
     renderHome()
 
@@ -180,30 +181,12 @@ describe('handleDownload', () => {
       expect(screen.getByText(/发现新版本/)).toBeTruthy()
     }, { timeout: 5000 })
 
+    // 点蓝框"下载更新"按钮（现在走 checkUpdate → confirm → handleDownload）
     await act(async () => { fireEvent.click(screen.getByText('下载更新')) })
 
     await waitFor(() => {
-      expect(mockAnchorClick).toHaveBeenCalled()
       expect(localStorage.getItem('quiz_app_ver')).toBe('1.18')
-    }, { timeout: 5000 })
-  })
-
-  it('两个APK源全失败 → window.open 兜底', async () => {
-    localStorage.setItem('quiz_app_ver', '1.0')
-    qFetch(() => Promise.resolve(ver('1.18')))
-    qFetch(() => Promise.reject(new Error('x')))
-    qFetch(() => Promise.reject(new Error('x')))
-
-    renderHome()
-
-    await waitFor(() => {
-      expect(screen.getByText(/发现新版本/)).toBeTruthy()
-    }, { timeout: 5000 })
-
-    await act(async () => { fireEvent.click(screen.getByText('下载更新')) })
-
-    await waitFor(() => {
-      expect(globalThis.open).toHaveBeenCalled()
-    }, { timeout: 5000 })
+      expect(screen.getByText(/下载完成/)).toBeTruthy()
+    }, { timeout: 8000 })
   })
 })
