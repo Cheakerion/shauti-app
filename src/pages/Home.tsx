@@ -41,13 +41,29 @@ export default function Home() {
   }, [])
 
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
+  // 取版本：优先 Java 层网络（无 CORS），否则 fetch 兜底
   async function fetchVersionUrl(): Promise<string | null> {
+    const AppUpdate = (window as any).AppUpdate
+    if (AppUpdate?.fetchVersion) {
+      const raw = await new Promise<string>((resolve) => {
+        const id = Date.now().toString(36)
+        ;(window as any).__versionCallback = (cid: string, json: string) => {
+          if (cid === id) resolve(json)
+        }
+        AppUpdate.fetchVersion(id)
+        // 10 秒超时
+        setTimeout(() => resolve(''), 10000)
+      })
+      if (raw) {
+        try { const data = JSON.parse(raw); return data.version || null } catch (_) { }
+      }
+    }
+    // 兜底：JS fetch
     const ts = Date.now()
-    const urls = [
+    for (const url of [
       `https://raw.githubusercontent.com/Cheakerion/shauti-app/master/version.json?t=${ts}`,
       `https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/version.json?t=${ts}`,
-    ]
-    for (const url of urls) {
+    ]) {
       try {
         const res = await fetch(url, { cache: 'no-store' })
         if (res.ok) return (await res.json()).version

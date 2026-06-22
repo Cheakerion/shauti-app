@@ -1,2 +1,2 @@
-{"version":"1.62","notes":"去掉GitHub API避免CORS预检"}}
+{"version":"1.63","notes":"Java侧网络请求获取版本，彻底无CORS"}}
 
