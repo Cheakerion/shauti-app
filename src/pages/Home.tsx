@@ -27,14 +27,15 @@ export default function Home() {
 
   useEffect(() => { refresh() }, [refresh])
 
+  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null)
+
   // 启动时自动检测更新 & 更新成功提示
   useEffect(() => {
     autoCheckUpdate()
-    // 检测上次下载的更新是否已安装
     const pending = localStorage.getItem('quiz_pending_update')
     if (pending) {
       localStorage.removeItem('quiz_pending_update')
-      setTimeout(() => alert(`已更新到 v${pending}`), 500)
+      setUpdateSuccess(pending)
     }
   }, [])
 
@@ -228,6 +229,13 @@ export default function Home() {
             <button className="btn btn-sm" onClick={() => handleDownload(updateVer)}>下载更新</button>
           )}
           <button className="btn btn-sm btn-outline" onClick={() => setUpdateVer(null)}>✕</button>
+        </div>
+      )}
+
+      {updateSuccess && (
+        <div className="update-banner" style={{ background: '#dcfce7', borderColor: '#16a34a' }}>
+          <span style={{ color: '#16a34a' }}>✅ 已更新到 v{updateSuccess}</span>
+          <button className="btn btn-sm btn-outline" onClick={() => setUpdateSuccess(null)}>✕</button>
         </div>
       )}
 
