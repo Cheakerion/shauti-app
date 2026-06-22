@@ -114,6 +114,22 @@ describe('autoCheckUpdate', () => {
 // 二、手动检测
 // ============================================================
 describe('checkUpdate', () => {
+  it('三个源全挂 → 提示"检测失败"', async () => {
+    localStorage.setItem('quiz_app_ver', '1.0')
+    qFetch(() => Promise.resolve(ver('1.0')))     // auto-check
+    qFetch(() => Promise.reject(new Error('x')))  // api
+    qFetch(() => Promise.reject(new Error('x')))  // raw
+    qFetch(() => Promise.reject(new Error('x')))  // cdn
+
+    renderHome()
+    await act(async () => { await new Promise(r => setTimeout(r, 200)) })
+    await act(async () => { fireEvent.click(screen.getByText('🔄 检查更新')) })
+
+    await waitFor(() => {
+      expect(globalThis.alert).toHaveBeenCalledWith(expect.stringContaining('检测失败'))
+    })
+  })
+
   it('有新版本 → confirm → 下载', async () => {
     localStorage.setItem('quiz_app_ver', '1.0')
     qFetch(() => Promise.resolve(ver('1.0')))
