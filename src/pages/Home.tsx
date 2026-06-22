@@ -28,22 +28,16 @@ export default function Home() {
 
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null)
 
+  const [downloadDone, setDownloadDone] = useState(false)
+
   // 启动时自动检测更新 & 更新成功提示
   useEffect(() => {
     const pending = localStorage.getItem('quiz_pending_update')
     if (pending) {
-      // 对比服务器版本确认更新成功
-      fetchVersionUrl().then(latest => {
-        if (latest && latest === pending) {
-          setUpdateSuccess(pending)
-        }
-      }).catch(() => {}).finally(() => {
-        localStorage.removeItem('quiz_pending_update')
-        autoCheckUpdate()
-      })
-    } else {
-      autoCheckUpdate()
+      localStorage.removeItem('quiz_pending_update')
+      setUpdateSuccess(pending)
     }
+    autoCheckUpdate()
   }, [])
 
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
@@ -189,6 +183,7 @@ export default function Home() {
     localStorage.setItem('quiz_app_ver', ver)
     localStorage.setItem('quiz_pending_update', ver)
     setUpdateVer(null)
+    setDownloadDone(true)
 
     const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
     const AppUpdate = (window as any).AppUpdate
@@ -236,6 +231,12 @@ export default function Home() {
         <div className="update-banner" style={{ background: '#dcfce7', borderColor: '#16a34a' }}>
           <span style={{ color: '#16a34a' }}>✅ 已更新到 v{updateSuccess}</span>
           <button className="btn btn-sm btn-outline" onClick={() => setUpdateSuccess(null)}>✕</button>
+        </div>
+      )}
+      {downloadDone && (
+        <div className="update-banner" style={{ background: '#dcfce7', borderColor: '#16a34a' }}>
+          <span style={{ color: '#16a34a' }}>✅ 下载完成，请下拉通知栏安装更新</span>
+          <button className="btn btn-sm btn-outline" onClick={() => setDownloadDone(false)}>✕</button>
         </div>
       )}
 
