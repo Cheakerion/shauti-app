@@ -197,16 +197,25 @@ export default function Home() {
     setShowDownloadTip(true)
   }
 
+  const [showCopyUrl, setShowCopyUrl] = useState(false)
+
   function confirmDownload() {
     setShowDownloadTip(false)
-    setDownloadStarted(true)
     const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
     const AppUpdate = (window as any).AppUpdate
     if (AppUpdate?.download) {
       AppUpdate.download(apkUrl)
+      setDownloadStarted(true)
     } else {
-      window.location.href = apkUrl
+      // 接口不可用，显示复制链接
+      setShowCopyUrl(true)
     }
+  }
+
+  function copyApkUrl() {
+    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
+    navigator.clipboard?.writeText(apkUrl).catch(() => {})
+    alert('链接已复制，请在浏览器中粘贴打开下载')
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
@@ -256,6 +265,23 @@ export default function Home() {
       {downloadStarted && (
         <div className="update-banner" style={{ background: '#dbeafe', borderColor: '#2563eb' }}>
           <span>📥 下载中，完成后下拉通知栏点击安装</span>
+        </div>
+      )}
+
+      {/* 复制链接弹窗 */}
+      {showCopyUrl && (
+        <div className="modal-overlay" onClick={() => setShowCopyUrl(false)}>
+          <div className="modal text-center" style={{ maxWidth: 340 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔗</div>
+            <h3>复制下载链接</h3>
+            <p style={{ color: '#64748b', margin: '12px 0', fontSize: '12px', wordBreak: 'break-all' }}>
+              https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
+              <button className="btn btn-outline" onClick={() => setShowCopyUrl(false)}>关闭</button>
+              <button className="btn" onClick={copyApkUrl}>复制链接</button>
+            </div>
+          </div>
         </div>
       )}
 
