@@ -12,10 +12,9 @@ param(
 $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# 确保 node/npm 在 PATH 中
 $env:PATH = "D:\hermes\node;" + $env:PATH
-$NpmExe = "D:\hermes\node\npm.cmd"
 $NodeExe = "D:\hermes\node\node.exe"
+$NpmCli = "D:\hermes\node\node_modules\npm\bin\npm-cli.js"
 
 Set-Location $ScriptDir
 
@@ -31,7 +30,7 @@ $Keystore = "$ApkBuildDir\quiz.keystore"
 # Step 1: Build web app
 # ============================================================
 Write-Host "[1/5] Building web app..." -ForegroundColor Yellow
-& $NpmExe run build
+& $NodeExe $NpmCli run build
 if ($LASTEXITCODE -ne 0) { throw "npm build failed" }
 
 # ============================================================
