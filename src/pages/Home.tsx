@@ -177,16 +177,21 @@ export default function Home() {
     if (file) handleFile(file)
   }
 
+  const [showDownloadTip, setShowDownloadTip] = useState(false)
+
   async function handleDownload(ver: string) {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
-    localStorage.setItem('quiz_pending_update', ver)  // 用于启动时检测更新成功
+    localStorage.setItem('quiz_pending_update', ver)
 
-    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
     setDownloading(false)
     setUpdateVer(null)
-    alert('即将跳转浏览器下载，安装完成后重新打开 App 即可')
-    window.location.href = apkUrl
+    setShowDownloadTip(true)  // 显示自定义弹窗
+  }
+
+  function confirmDownload() {
+    setShowDownloadTip(false)
+    window.location.href = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
@@ -277,6 +282,21 @@ export default function Home() {
           </div>
         </div>
       ))}
+
+      {/* 下载提示弹窗 */}
+      {showDownloadTip && (
+        <div className="modal-overlay">
+          <div className="modal text-center" style={{ maxWidth: 320 }}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>📥</div>
+            <h3>开始下载更新</h3>
+            <p style={{ color: '#64748b', margin: '12px 0' }}>将跳转浏览器下载安装包</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
+              <button className="btn btn-outline" onClick={() => setShowDownloadTip(false)}>取消</button>
+              <button className="btn" onClick={confirmDownload}>开始下载</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 删除确认弹窗 */}
       {deleteTarget && (
