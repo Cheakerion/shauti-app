@@ -182,7 +182,6 @@ export default function Home() {
   function handleDownload(ver: string) {
     localStorage.setItem('quiz_app_ver', ver)
     localStorage.setItem('quiz_pending_update', ver)
-    setUpdateVer(null)
     setDownloadDone(true)
 
     const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
