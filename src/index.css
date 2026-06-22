@@ -32,6 +32,7 @@ body {
   color: var(--text);
   line-height: 1.6;
   min-height: 100dvh;
+  padding-top: max(16px, env(safe-area-inset-top, 0px));
 }
 
 #root {

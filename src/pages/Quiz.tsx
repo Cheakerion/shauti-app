@@ -256,7 +256,7 @@ export default function Quiz() {
     <div>
       <div className="navbar">
         <a className="back" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>← 返回</a>
-        <span className="title">刷题 ({currentIndex + 1}/{filteredQuestions.length})</span>
+        <span className="title">刷题 ({question?.index || currentIndex + 1}/{questions.length})</span>
         <button className="btn btn-sm btn-outline" onClick={() => setShowQuestionList(true)}>📋</button>
       </div>
 
@@ -309,7 +309,7 @@ export default function Quiz() {
 
       <div className="quiz-stats">
         <span>正确 <span style={{ color: '#16a34a' }}>{stats.correct}</span> 错误 <span style={{ color: '#dc2626' }}>{stats.wrong}</span></span>
-        <span className="count">{currentIndex + 1} / {filteredQuestions.length}</span>
+        <span className="count">{question?.index || currentIndex + 1} / {questions.length}</span>
       </div>
 
       {question && (
@@ -398,7 +398,7 @@ export default function Quiz() {
                 if (i === currentIndex) dotCls += ' q-current'
                 return (
                   <button key={q.id} className={dotCls} onClick={() => jumpToQuestion(i)}>
-                    {i + 1}
+                    {q.index}
                   </button>
                 )
               })}
