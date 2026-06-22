@@ -35,23 +35,14 @@ Write-Host "[1/5] Building web app..." -ForegroundColor Yellow
 if ($LASTEXITCODE -ne 0) { throw "npm build failed" }
 
 # ============================================================
-# Step 1.5: Inline JS+CSS into single HTML (fixes WebView white screen)
-# ============================================================
-Write-Host "[1.5/5] Inlining assets..." -ForegroundColor Yellow
-& powershell -ExecutionPolicy Bypass -File "$ScriptDir\scripts\build-inline.ps1"
-if ($LASTEXITCODE -ne 0) { throw "inline build failed" }
-
-# ============================================================
 # Step 2: Copy assets to apk-build
 # ============================================================
 Write-Host "[2/5] Copying assets..." -ForegroundColor Yellow
 $AssetsDir = "$ApkBuildDir\assets"
-if (Test-Path $AssetsDir) { Remove-Item -Recurse -Force $AssetsDir }
-Copy-Item -Recurse "$DistDir\*" $AssetsDir
 
-# 用 inline.html 替换 index.html（所有资源内联，零额外请求）
-Remove-Item "$AssetsDir\index.html" -Force
-Rename-Item "$AssetsDir\inline.html" "index.html"
+# 用 cmd xcopy 保留子目录结构（PowerShell Copy-Item 在脚本中不稳定）
+New-Item -ItemType Directory -Force $AssetsDir | Out-Null
+cmd /c "xcopy /E /Y /Q `"$DistDir\*`" `"$AssetsDir\`"" | Out-Null
 
 # ============================================================
 # Step 3: Compile Java -> DEX + Package base APK with aapt
@@ -60,8 +51,8 @@ Write-Host "[3/5] Building APK..." -ForegroundColor Yellow
 
 # Clean
 $ClassesDir = "$ApkBuildDir\classes"; $ObjDir = "$ApkBuildDir\obj"
-if (Test-Path $ClassesDir) { Remove-Item -Recurse -Force $ClassesDir }
-if (Test-Path $ObjDir) { Remove-Item -Recurse -Force $ObjDir }
+if (Test-Path $ClassesDir) { Remove-Item -Recurse -Force $ClassesDir -ErrorAction SilentlyContinue }
+if (Test-Path $ObjDir) { Remove-Item -Recurse -Force $ObjDir -ErrorAction SilentlyContinue }
 New-Item -ItemType Directory -Force -Path $ClassesDir | Out-Null
 New-Item -ItemType Directory -Force -Path $ObjDir | Out-Null
 
@@ -80,25 +71,41 @@ $BaseApk = "$ApkBuildDir\base.apk"
 & $Aapt package -f -M "$ApkBuildDir\AndroidManifest.xml" -I $AndroidJar -S "$ApkBuildDir\res" -F $BaseApk
 if ($LASTEXITCODE -ne 0) { throw "aapt failed" }
 
-# Add classes.dex + assets using Python
+# Add classes.dex + assets
 $WithDexApk = "$ApkBuildDir\with-dex.apk"
 Copy-Item $BaseApk $WithDexApk -Force
 
-$PythonScript = @"
+# 复制到临时目录避免 Python 中文路径乱码
+$TmpDir = "C:\Users\70921\AppData\Local\Temp\quiz_build"
+if (Test-Path $TmpDir) { Remove-Item -Recurse -Force $TmpDir }
+New-Item -ItemType Directory -Force $TmpDir | Out-Null
+New-Item -ItemType Directory -Force "$TmpDir\assets" | Out-Null
+cmd /c "xcopy /E /Y /Q `"$AssetsDir\*`" `"$TmpDir\assets\`"" | Out-Null
+Copy-Item "$ObjDir\classes.dex" "$TmpDir\classes.dex"
+Copy-Item $WithDexApk "$TmpDir\base.apk"
+
+$PyScript = "$TmpDir\pack.py"
+@'
 import zipfile, os
-z = zipfile.ZipFile(r'$WithDexApk', 'a', zipfile.ZIP_DEFLATED)
-z.write(r'$ObjDir\classes.dex', 'classes.dex')
-for root, dirs, files in os.walk(r'$AssetsDir'):
+APK = r"__TMP__/base.apk"
+ASSETS = r"__TMP__/assets"
+z = zipfile.ZipFile(APK, "a", zipfile.ZIP_DEFLATED)
+z.write(r"__TMP__/classes.dex", "classes.dex")
+for root, dirs, files in os.walk(ASSETS):
     for f in files:
         fp = os.path.join(root, f)
-        rel = os.path.relpath(fp, r'$AssetsDir')
-        z.write(fp, 'assets/' + rel.replace(os.sep, '/'))
+        rel = os.path.relpath(fp, ASSETS)
+        z.write(fp, "assets/" + rel.replace(os.sep, "/"))
 z.close()
-apk_path = r'$WithDexApk'
-print(f'APK size: {os.path.getsize(apk_path)} bytes')
-"@
-python -c $PythonScript
+print(f"APK size: {os.path.getsize(APK)} bytes")
+'@.Replace('__TMP__', $TmpDir) | Out-File $PyScript -Encoding UTF8
+
+python "$PyScript"
 if ($LASTEXITCODE -ne 0) { throw "Failed to add dex/assets" }
+
+# 复制回原位置
+Copy-Item "$TmpDir\base.apk" $WithDexApk -Force
+Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
 
 # ============================================================
 # Step 4: Align (MUST be before signing!)

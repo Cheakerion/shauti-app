@@ -1,1 +1,1 @@
-{"version":"1.22","notes":"所有JS/CSS内联到单个HTML文件，彻底解决WebView ES module加载白屏"}
+{"version":"1.23","notes":"修复构建脚本Copy-Item拍平子目录bug（换xcopy）；恢复PWA；三保险版本检测+下载不跳出"}

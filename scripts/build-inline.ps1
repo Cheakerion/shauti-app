@@ -17,7 +17,7 @@ $html = [regex]::Replace($html, '<script[^>]*src="([^"]*\.js)"[^>]*></script>', 
     $jsFile = "$DistPath\$($m.Groups[1].Value)"
     if (Test-Path $jsFile) {
         $js = Get-Content $jsFile -Raw -Encoding UTF8
-        return "<script type=`"module`">$js</script>"
+        return "<script>$js</script>"
     }
     return $m.Value
 })
