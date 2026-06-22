@@ -1,1 +1,1 @@
-{"version":"1.37","notes":"Android原生下载接口，走App网络不绕浏览器"}
+{"version":"1.38","notes":"DownloadManager后台下载，不跳转"}
