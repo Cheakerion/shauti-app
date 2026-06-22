@@ -175,11 +175,17 @@ export default function Home() {
     setDownloading(true)
     localStorage.setItem('quiz_app_ver', ver)
 
-    // 直接跳转触发下载，不 fetch（避免 WebView blob 跳转黑屏）
-    const apkUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
+    // CDN 优先（国内不用翻），raw 兜底
+    const cdnUrl = 'https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/releases/shuati.apk'
+    const rawUrl = 'https://raw.githubusercontent.com/Cheakerion/shauti-app/master/releases/shuati.apk'
     setDownloading(false)
     setUpdateVer(null)
-    window.location.href = apkUrl
+    window.location.href = cdnUrl
+    // 如果 CDN 有缓存问题，3 秒后没反应就切 raw
+    setTimeout(() => {
+      if (document.hidden) return // 已经在下载了
+      window.location.href = rawUrl
+    }, 3000)
   }
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
