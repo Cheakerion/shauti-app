@@ -241,7 +241,7 @@ export default function Home() {
       )}
 
       <div className="home-header">
-        <h1>📝 刷题</h1>
+        <h1>📝 刷题 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>v{localStorage.getItem('quiz_app_ver') || '1.0'}</span></h1>
         <p>导入题库，开始刷题</p>
         <button className="btn btn-sm btn-outline mt-8" onClick={checkUpdate}>🔄 检查更新</button>
       </div>
