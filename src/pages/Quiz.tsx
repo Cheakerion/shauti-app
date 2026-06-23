@@ -147,20 +147,14 @@ export default function Quiz() {
     setShuffledIndices(indices)
   }
 
-  async function clearWrongRecords() {
-    if (!bankId) return
-    if (!confirm('确定清除所有做错记录？已做记录不受影响。')) return
-    const all = await db.answerRecords.where('bankId').equals(bankId).filter((r: any) => !r.isCorrect).toArray()
-    await db.answerRecords.bulkDelete(all.map(r => r.id!))
-    setWrongIds(new Set())
-  }
-
-  async function clearDoneRecords() {
-    if (!bankId) return
-    if (!confirm('确定清除所有已做记录？做错记录不受影响。')) return
-    const all = await db.answerRecords.where('bankId').equals(bankId).filter((r: any) => r.isCorrect).toArray()
-    await db.answerRecords.bulkDelete(all.map(r => r.id!))
-    setHistoryAnswers(new Map())
+  function redoWrong() {
+    if (!confirm('重做所有做错的题目？错误记录保留，只重置答题状态。')) return
+    const newHistory = new Map(historyAnswers)
+    for (const id of wrongIds) newHistory.delete(id)
+    setHistoryAnswers(newHistory)
+    setFilterMode('wrong')
+    setCurrentIndex(0)
+    setSelectedAnswer(null)
   }
 
   const submitAnswer = useCallback(async (answer: string) => {
@@ -321,8 +315,7 @@ export default function Quiz() {
       {/* 重置 */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }} />
-        <button className="btn btn-sm btn-outline" onClick={clearWrongRecords}>🗑 清除做错</button>
-        <button className="btn btn-sm btn-outline" onClick={clearDoneRecords}>🗑 清除已做</button>
+        <button className="btn btn-sm btn-outline" onClick={redoWrong}>🔄 重做做错</button>
         <button className="btn btn-sm btn-outline" style={{ color: '#dc2626', borderColor: '#dc2626' }} onClick={fullRestart}>全部清除</button>
       </div>
 
