@@ -29,13 +29,19 @@ export default function Home() {
 
   const [downloadDone, setDownloadDone] = useState(false)
   const [latestUpdate, setLatestUpdate] = useState(0)
-  const [installedUpdate] = useState(parseInt(localStorage.getItem('quiz_app_update') || '0'))
+  const [installedUpdate, setInstalledUpdate] = useState(parseInt(localStorage.getItem('quiz_app_update') || '0'))
   const lag = Math.max(0, latestUpdate - installedUpdate)
 
   useEffect(() => {
     const pending = localStorage.getItem('quiz_pending_update')
     if (pending) { localStorage.removeItem('quiz_pending_update'); setUpdateSuccess(pending) }
-    ;(window as any).__onVersionReady = (_v: string, u: string) => { setLatestUpdate(parseInt(u)||0) }
+    ;(window as any).__onVersionReady = (v: string, u: string) => {
+      setLatestUpdate(parseInt(u)||0)
+      if (v && v === localStorage.getItem('quiz_app_ver')) {
+        localStorage.setItem('quiz_app_update', u)
+        setInstalledUpdate(parseInt(u)||0)
+      }
+    }
     let tries = 0
     const timer = setInterval(() => {
       const u = localStorage.getItem('quiz_latest_update')
