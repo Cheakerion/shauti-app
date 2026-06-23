@@ -9,7 +9,6 @@ export default function Home() {
   const [bankTypes, setBankTypes] = useState<Record<string, string[]>>({})
   const [dragover, setDragover] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [updateVer, setUpdateVer] = useState<string | null>(null)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -39,7 +38,6 @@ export default function Home() {
       localStorage.removeItem('quiz_pending_update')
       setUpdateSuccess(pending)
     }
-    autoCheckUpdate()
     // Java 回调后触发版本刷新
     ;(window as any).__onVersionReady = (ver: string, build: string) => {
       setDisplayVer(ver)
@@ -56,27 +54,6 @@ export default function Home() {
     }, 500)
     return () => clearInterval(timer)
   }, [])
-
-  // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
-  async function fetchVersionUrl(): Promise<string | null> {
-    // 读 Java onPageFinished 注入的版本
-    const v = localStorage.getItem('quiz_latest_ver')
-    localStorage.removeItem('quiz_latest_ver')
-    if (v) return v
-    return null
-  }
-
-  async function autoCheckUpdate() {
-    const latestVer = await fetchVersionUrl()
-    if (!latestVer) return
-    let cur = localStorage.getItem('quiz_app_ver') || ''
-    if (!cur && latestVer) { localStorage.setItem('quiz_app_ver', latestVer); cur = latestVer }
-    if (latestVer && newer(latestVer, cur || '0')) {
-      setUpdateVer(latestVer)
-    }
-    setDisplayVer(localStorage.getItem('quiz_app_ver') || '1.0')
-    setDisplayBuild(localStorage.getItem('quiz_latest_build') || '0')
-  }
 
   // Receive file from Android WebView (WeChat share, file open, etc.)
   useEffect(() => {
@@ -123,15 +100,7 @@ export default function Home() {
     } finally { setLoading(false) }
   }
 
-  function newer(a: string, b: string) {
-    const pa = a.split('.').map(Number), pb = b.split('.').map(Number)
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-      if ((pa[i]||0) !== (pb[i]||0)) return (pa[i]||0) > (pb[i]||0)
-    }
-    return false
-  }
-
-  async function checkUpdate() {
+  function checkUpdate() {
     // 走 Java 原生弹窗
     location.href = 'quiz://check-update'
   }
@@ -167,14 +136,6 @@ export default function Home() {
 
   return (
     <div>
-      {updateVer && (
-        <div className="update-banner">
-          <span>发现新版本 v{updateVer}！</span>
-          <button className="btn btn-sm" onClick={checkUpdate}>下载更新</button>
-          <button className="btn btn-sm btn-outline" onClick={() => setUpdateVer(null)}>✕</button>
-        </div>
-      )}
-
       {updateSuccess && (
         <div className="update-banner" style={{ background: '#dcfce7', borderColor: '#16a34a' }}>
           <span style={{ color: '#16a34a' }}>✅ 已更新到 v{updateSuccess}</span>
