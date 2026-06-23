@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getQuestionsByBank, saveAnswerRecord, getWrongQuestionIds } from '../db'
+import { getQuestionsByBank, saveAnswerRecord, getWrongQuestionIds, db } from '../db'
 import type { Question, QuizMode, AnswerRecord } from '../types'
 import ProgressBar from '../components/ProgressBar'
 
@@ -125,12 +125,15 @@ export default function Quiz() {
   }, [historyAnswers, questions])
 
   function fullRestart() {
+    if (!confirm('确定清除所有答题记录？所有已做/做错记录将被清空。')) return
     localStorage.removeItem(sessionKey)
+    db.answerRecords.where('bankId').equals(bankId!).delete()
     setCurrentIndex(0)
     setSelectedAnswer(null)
     setPendingAnswer(null)
     setRecords([])
     setHistoryAnswers(new Map())
+    setWrongIds(new Set())
     setShowComplete(false)
     setAllDone(false)
     setAutoAdvancing(false)
@@ -142,6 +145,22 @@ export default function Quiz() {
       [indices[i], indices[j]] = [indices[j], indices[i]]
     }
     setShuffledIndices(indices)
+  }
+
+  async function clearWrongRecords() {
+    if (!bankId) return
+    if (!confirm('确定清除所有做错记录？已做记录不受影响。')) return
+    const all = await db.answerRecords.where('bankId').equals(bankId).filter((r: any) => !r.isCorrect).toArray()
+    await db.answerRecords.bulkDelete(all.map(r => r.id!))
+    setWrongIds(new Set())
+  }
+
+  async function clearDoneRecords() {
+    if (!bankId) return
+    if (!confirm('确定清除所有已做记录？做错记录不受影响。')) return
+    const all = await db.answerRecords.where('bankId').equals(bankId).filter((r: any) => r.isCorrect).toArray()
+    await db.answerRecords.bulkDelete(all.map(r => r.id!))
+    setHistoryAnswers(new Map())
   }
 
   const submitAnswer = useCallback(async (answer: string) => {
@@ -300,17 +319,26 @@ export default function Quiz() {
       </div>
 
       {/* 重置 */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ flex: 1 }} />
-        <button className="btn btn-sm btn-outline" onClick={fullRestart}>🔄 重新开始</button>
+        <button className="btn btn-sm btn-outline" onClick={clearWrongRecords}>🗑 清除做错</button>
+        <button className="btn btn-sm btn-outline" onClick={clearDoneRecords}>🗑 清除已做</button>
+        <button className="btn btn-sm btn-outline" style={{ color: '#dc2626', borderColor: '#dc2626' }} onClick={fullRestart}>全部清除</button>
       </div>
 
       <ProgressBar current={currentIndex + (answered ? 1 : 0)} total={filteredQuestions.length} />
 
       <div className="quiz-stats">
         <span>正确 <span style={{ color: '#16a34a' }}>{stats.correct}</span> 错误 <span style={{ color: '#dc2626' }}>{stats.wrong}</span></span>
-        <span className="count">{question?.index || currentIndex + 1} / {questions.length}</span>
+        <span className="count">{question?.index || currentIndex + 1} / {filteredQuestions.length || questions.length}</span>
       </div>
+
+      {filteredQuestions.length === 0 && filterMode !== 'all' && (
+        <div className="empty-state" style={{ marginTop: 24 }}>
+          <div className="icon">{filterMode === 'wrong' ? '🎉' : filterMode === 'done' ? '📋' : '📝'}</div>
+          <h3>{filterMode === 'wrong' ? '没有做错的题目' : filterMode === 'done' ? '还没有做过的题目' : '全部已完成'}</h3>
+        </div>
+      )}
 
       {question && (
         <div className="card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
