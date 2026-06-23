@@ -18,12 +18,6 @@ globalThis.fetch = vi.fn(async () => {
 
 globalThis.alert = vi.fn()
 globalThis.confirm = vi.fn(() => true)
-globalThis.URL.createObjectURL = vi.fn(() => 'blob:test')
-globalThis.URL.revokeObjectURL = vi.fn()
-globalThis.open = vi.fn()
-
-const ver = (v: string) => ({ ok: true, status: 200, json: async () => ({ version: v }) })
-const apk = () => ({ ok: true, status: 200, blob: async () => new Blob(['apk']) })
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -38,56 +32,63 @@ function renderHome() {
 }
 
 // ============================================================
-// 一、自动检测（fetchVersionUrl 读 localStorage.quiz_latest_ver）
+// 一、版本显示：lag 差值
 // ============================================================
-describe('autoCheckUpdate', () => {
-  it('Java 注入了新版本 → 显示蓝框', async () => {
-    localStorage.setItem('quiz_app_ver', '1.0')
-    localStorage.setItem('quiz_latest_ver', '1.18')
+describe('差值显示', () => {
+  it('已是最新：installed=2 latest=2 → 已是最新', async () => {
+    localStorage.setItem('quiz_app_ver', '1.88')
+    localStorage.setItem('quiz_app_update', '2')
+    localStorage.setItem('quiz_latest_update', '2')
     renderHome()
 
     await waitFor(() => {
-      expect(screen.getByText(/发现新版本/)).toBeTruthy()
-    }, { timeout: 5000 })
+      expect(screen.getByText(/已是最新/)).toBeTruthy()
+    }, { timeout: 3000 })
   })
 
-  it('没有注入版本 → 不显示蓝框', async () => {
-    localStorage.setItem('quiz_app_ver', '1.0')
+  it('落后 1 个：installed=1 latest=2 → 落后 1 个更新', async () => {
+    localStorage.setItem('quiz_app_ver', '1.87')
+    localStorage.setItem('quiz_app_update', '1')
+    localStorage.setItem('quiz_latest_update', '2')
     renderHome()
-    await new Promise(r => setTimeout(r, 500))
-    expect(screen.queryByText(/发现新版本/)).toBeNull()
+
+    await waitFor(() => {
+      expect(screen.getByText(/落后 1 个更新/)).toBeTruthy()
+    }, { timeout: 3000 })
   })
 
-  it('版本相同 → 不显示蓝框', async () => {
-    localStorage.setItem('quiz_app_ver', '1.18')
-    localStorage.setItem('quiz_latest_ver', '1.18')
+  it('无 installed → 默认 0，lag=latest', async () => {
+    localStorage.setItem('quiz_latest_update', '3')
     renderHome()
-    await new Promise(r => setTimeout(r, 500))
-    expect(screen.queryByText(/发现新版本/)).toBeNull()
+
+    await waitFor(() => {
+      expect(screen.getByText(/落后 3 个更新/)).toBeTruthy()
+    }, { timeout: 3000 })
   })
 })
 
 // ============================================================
-// 二、手动检测（走 location.href = 'quiz://check-update'）
+// 二、手动检查更新（走 quiz://check-update）
 // ============================================================
 describe('checkUpdate', () => {
-  it('点检查更新 → 设置 location.href', async () => {
+  it('点检查更新 → 不崩溃', async () => {
     renderHome()
+    await act(async () => { await new Promise(r => setTimeout(r, 200)) })
     await act(async () => { fireEvent.click(screen.getByText('🔄 检查更新')) })
-    // jsdom 不支持 location.href 跳转，只验证没崩溃
     expect(screen.getByText('📝 刷题')).toBeTruthy()
   })
+})
 
-  it('蓝框按钮也走检查更新', async () => {
-    localStorage.setItem('quiz_app_ver', '1.0')
-    localStorage.setItem('quiz_latest_ver', '1.18')
+// ============================================================
+// 三、更新成功横幅
+// ============================================================
+describe('updateSuccess', () => {
+  it('启动时检测到 pending → 显示更新成功', async () => {
+    localStorage.setItem('quiz_pending_update', '1.88')
     renderHome()
 
     await waitFor(() => {
-      expect(screen.getByText(/发现新版本/)).toBeTruthy()
-    }, { timeout: 5000 })
-
-    await act(async () => { fireEvent.click(screen.getByText('下载更新')) })
-    expect(screen.getByText('📝 刷题')).toBeTruthy()
+      expect(screen.getByText(/已更新到 v1.88/)).toBeTruthy()
+    }, { timeout: 2000 })
   })
 })
