@@ -1,2 +1,2 @@
-{"version":"1.80","build":5,"notes":"JSON注入语法修复"}}
+{"version":"1.81","build":6,"notes":"分字段注入修复中文乱码"}}
 
