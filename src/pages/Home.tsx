@@ -28,29 +28,19 @@ export default function Home() {
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null)
 
   const [downloadDone, setDownloadDone] = useState(false)
-  const [displayVer, setDisplayVer] = useState(localStorage.getItem('quiz_app_ver') || '1.0')
-  const [displayBuild, setDisplayBuild] = useState(localStorage.getItem('quiz_latest_build') || '0')
+  const [latestUpdate, setLatestUpdate] = useState(0)
+  const [installedUpdate] = useState(parseInt(localStorage.getItem('quiz_app_update') || '0'))
+  const lag = Math.max(0, latestUpdate - installedUpdate)
 
-  // 启动时自动检测更新 & 更新成功提示
   useEffect(() => {
     const pending = localStorage.getItem('quiz_pending_update')
-    if (pending) {
-      localStorage.removeItem('quiz_pending_update')
-      setUpdateSuccess(pending)
-    }
-    // Java 回调后触发版本刷新
-    ;(window as any).__onVersionReady = (ver: string, build: string) => {
-      setDisplayVer(ver)
-      setDisplayBuild(build)
-    }
-    // 兜底：轮询
+    if (pending) { localStorage.removeItem('quiz_pending_update'); setUpdateSuccess(pending) }
+    ;(window as any).__onVersionReady = (_v: string, u: string) => { setLatestUpdate(parseInt(u)||0) }
     let tries = 0
     const timer = setInterval(() => {
-      const v = localStorage.getItem('quiz_latest_ver') || localStorage.getItem('quiz_app_ver')
-      const b = localStorage.getItem('quiz_latest_build')
-      if (v) setDisplayVer(v)
-      if (b) setDisplayBuild(b)
-      if ((v && b) || ++tries > 60) clearInterval(timer)
+      const u = localStorage.getItem('quiz_latest_update')
+      if (u) setLatestUpdate(parseInt(u)||0)
+      if (u || ++tries > 60) clearInterval(timer)
     }, 500)
     return () => clearInterval(timer)
   }, [])
@@ -150,7 +140,7 @@ export default function Home() {
       )}
 
       <div className="home-header">
-        <h1>📝 刷题 <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}>v{displayVer} Build {displayBuild}</span></h1>
+        <h1>📝 刷题 <span style={{ fontSize: '0.7rem', color: lag > 0 ? '#dc2626' : '#16a34a', fontWeight: 400 }}>{lag > 0 ? `落后 ${lag} 个更新` : '已是最新'}</span></h1>
         <p>导入题库，开始刷题</p>
         <button className="btn btn-sm btn-outline mt-8" onClick={checkUpdate}>🔄 检查更新</button>
       </div>
