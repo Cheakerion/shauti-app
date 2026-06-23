@@ -39,10 +39,17 @@ export default function Home() {
       localStorage.removeItem('quiz_pending_update')
       setUpdateSuccess(pending)
     }
-    autoCheckUpdate().then(() => {
-      setDisplayVer(localStorage.getItem('quiz_app_ver') || '1.0')
-      setDisplayBuild(localStorage.getItem('quiz_latest_build') || '0')
-    })
+    autoCheckUpdate()
+    // 轮询等 Java 注入完成
+    let tries = 0
+    const timer = setInterval(() => {
+      const v = localStorage.getItem('quiz_app_ver')
+      const b = localStorage.getItem('quiz_latest_build')
+      if (v) setDisplayVer(v)
+      if (b) setDisplayBuild(b)
+      if (v && b || ++tries > 10) clearInterval(timer)
+    }, 300)
+    return () => clearInterval(timer)
   }, [])
 
   // 三保险取版本：GitHub API（零缓存）→ Raw 源 → CDN
