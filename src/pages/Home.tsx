@@ -40,15 +40,20 @@ export default function Home() {
       setUpdateSuccess(pending)
     }
     autoCheckUpdate()
-    // 轮询等 Java 注入完成
+    // Java 回调后触发版本刷新
+    ;(window as any).__onVersionReady = (ver: string, build: string) => {
+      setDisplayVer(ver)
+      setDisplayBuild(build)
+    }
+    // 兜底：轮询
     let tries = 0
     const timer = setInterval(() => {
-      const v = localStorage.getItem('quiz_app_ver')
+      const v = localStorage.getItem('quiz_latest_ver') || localStorage.getItem('quiz_app_ver')
       const b = localStorage.getItem('quiz_latest_build')
       if (v) setDisplayVer(v)
       if (b) setDisplayBuild(b)
-      if (v && b || ++tries > 10) clearInterval(timer)
-    }, 300)
+      if ((v && b) || ++tries > 60) clearInterval(timer)
+    }, 500)
     return () => clearInterval(timer)
   }, [])
 
