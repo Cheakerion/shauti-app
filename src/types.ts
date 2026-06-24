@@ -16,6 +16,7 @@ export interface Question {
   type: QuestionType;    // 题目类型
   localNum?: number;     // 解析时使用的题号（split-format 中各模块独立编号）
   stem: string;          // 题干（支持多行）
+  engStem?: string;      // 英文术语（名词解释题可选）
   options: Option[];     // 选项列表
   answer: string;        // 正确答案，如 "D" 或填空题答案文本
   explanation?: string;  // 解析（可选）

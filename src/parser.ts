@@ -121,6 +121,7 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
     const options: Option[] = [];
     let currentAnswer = '';
     let currentExplanation = '';
+    let currentEngStem = '';
     let inExplanation = false;
     i++;
 
@@ -132,6 +133,13 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
 
       const t = line.trim();
       if (/^#{1,3}\s/.test(t) || /^---+$/.test(t) || /^>/.test(t) || /^\|/.test(t)) {
+        i++; continue;
+      }
+
+      // 英文术语（可选）
+      const engMatch = t.match(/^英文\s*[:：]\s*(.+)/);
+      if (engMatch) {
+        currentEngStem = engMatch[1].trim();
         i++; continue;
       }
 
@@ -173,6 +181,7 @@ function parseSplitQuestions(text: string): ParseResult['questions'] {
       results.push({
         index: 0, localNum, stem, options, answer: currentAnswer,
         explanation: currentExplanation || undefined, type: currentType,
+        engStem: currentEngStem || undefined,
       } as any);
     }
   }
@@ -225,10 +234,13 @@ function parseInlineBlock(lines: string[], qType: QuestionType = 'choice'): Pars
   if (lines.length === 0) return null;
   const stemLines: string[] = [];
   const options: Option[] = [];
-  let answer = '', explanation = '', inOpts = false, inExp = false;
+  let answer = '', explanation = '', engStem = '', inOpts = false, inExp = false;
   for (const raw of lines) {
     const line = raw.trim();
     if (line === '') continue;
+    // 英文术语（可选）
+    const engMatch = line.match(/^英文\s*[:：]\s*(.+)/);
+    if (engMatch) { engStem = engMatch[1].trim(); continue; }
     // 兼容微信粗体：**解析：** 或 **解析:** 都能匹配
     const expMatch = line.match(/^(?:\*\*)?解析\s*[:：](?:\*\*)?\s*(.*)/);
     if (expMatch) { inExp = true; inOpts = false; explanation = expMatch[1].trim(); continue; }
@@ -242,7 +254,7 @@ function parseInlineBlock(lines: string[], qType: QuestionType = 'choice'): Pars
   }
   const stem = stemLines.join('\n').trim();
   if (!stem || !answer) return null;
-  return { index: 0, stem, options, answer, explanation: explanation || undefined, type: qType };
+  return { index: 0, stem, options, answer, explanation: explanation || undefined, type: qType, engStem: engStem || undefined } as any;
 }
 
 export function generateId(): string {

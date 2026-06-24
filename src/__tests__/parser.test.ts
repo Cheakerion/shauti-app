@@ -121,6 +121,7 @@ title: 测试名词解释
 ## 名词解释
 
 1. 生物转化
+英文: Biotransformation
 正确答案: 外来化合物在体内代谢酶的作用下，经氧化、还原、水解和结合反应，使其化学结构发生改变，极性和水溶性增加，有利于排出体外的过程。
 解析: 分为I相反应和II相反应，主要场所是肝脏。
 
@@ -139,6 +140,20 @@ title: 测试名词解释
   it('答案内容正确（无选项题型）', () => {
     expect(result.questions[0].stem).toContain('生物转化')
     expect(result.questions[0].answer).toContain('外来化合物')
+  })
+
+  it('有英文:字段时 engStem 被正确提取', () => {
+    expect(result.questions[0].engStem).toBe('Biotransformation')
+    expect(result.questions[0].stem).toContain('生物转化')
+  })
+
+  it('无英文:字段时 engStem 为 undefined', () => {
+    expect(result.questions[1].engStem).toBeUndefined()
+  })
+
+  it('英文:字段不污染 stem 和 explanation', () => {
+    expect(result.questions[0].stem).not.toContain('英文')
+    expect(result.questions[0].explanation).not.toContain('Biotransformation')
   })
 })
 
@@ -542,7 +557,7 @@ describe('真实题库文件', () => {
     expect(result.questions.length).toBe(2)
   })
 
-  it('模板名词解释 — 解析正常', () => {
+  it('模板名词解释 — 解析正常且 engStem 正确', () => {
     const filePath = path.join(bankDir, '模板-名词解释.md')
     if (!fs.existsSync(filePath)) {
       console.warn('文件不存在，跳过测试')
@@ -551,6 +566,31 @@ describe('真实题库文件', () => {
     const md = fs.readFileSync(filePath, 'utf-8')
     const result = parseMarkdownBank(md)
     expect(result.questions.length).toBe(3)
+    // 所有题都应有英文术语
+    expect(result.questions[0].engStem).toBe('Hypertension')
+    expect(result.questions[1].engStem).toBe('Heart failure')
+    expect(result.questions[2].engStem).toBe('Biotransformation')
+  })
+
+  it('物理诊断学名词解释 — 解析正常且 engStem 正确', () => {
+    const filePath = path.join(bankDir, '物理诊断学__第1次课__名词解释.md')
+    if (!fs.existsSync(filePath)) {
+      console.warn('文件不存在，跳过测试')
+      return
+    }
+    const md = fs.readFileSync(filePath, 'utf-8')
+    const result = parseMarkdownBank(md)
+    expect(result.questions.length).toBe(13)
+    // 验证英文术语
+    expect(result.questions[0].engStem).toBe('Diagnostics')
+    expect(result.questions[0].stem).toContain('诊断学')
+    // 验证最后一道
+    expect(result.questions[12].engStem).toBe('Family history')
+    expect(result.questions[12].stem).toContain('家族史')
+    // 所有题都应该有 engStem
+    for (const q of result.questions) {
+      expect(q.engStem).toBeTruthy()
+    }
   })
 
   it('模板简答题 — 解析正常', () => {

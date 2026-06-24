@@ -261,10 +261,15 @@ export default function TextQuiz({ qType }: Props) {
 
       {question && (
         <div className="card" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd} style={{ touchAction: 'pan-y' }}>
-          <div className="stem-text">{question.stem}</div>
+          <div className="stem-text">{qType === 'explain' && question.engStem ? question.engStem : question.stem}</div>
 
           {answerRevealed ? (
             <>
+              {qType === 'explain' && question.engStem && (
+                <div className="explanation" style={{ marginTop: 12 }}>
+                  <strong>{question.stem}</strong>
+                </div>
+              )}
               <div className="explanation" style={{ marginTop: 12 }}>
                 <strong>参考答案：</strong>
                 <p style={{ marginTop: 4 }}>{question.answer}</p>
