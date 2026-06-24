@@ -2,12 +2,13 @@
 // IndexedDB 数据库操作（Dexie）
 // ============================================================
 import Dexie, { type Table } from 'dexie';
-import type { QuestionBank, Question, AnswerRecord } from './types';
+import type { QuestionBank, Question, AnswerRecord, MarkedQuestion } from './types';
 
 class QuizDB extends Dexie {
   questionBanks!: Table<QuestionBank, string>;
   questions!: Table<Question, string>;
   answerRecords!: Table<AnswerRecord, number>;
+  markedQuestions!: Table<MarkedQuestion, number>;
 
   constructor() {
     super('QuizAppDB');
@@ -15,6 +16,12 @@ class QuizDB extends Dexie {
       questionBanks: 'id, createdAt',
       questions: 'id, bankId, [bankId+index]',
       answerRecords: '++id, questionId, bankId, timestamp',
+    });
+    this.version(2).stores({
+      questionBanks: 'id, createdAt',
+      questions: 'id, bankId, [bankId+index]',
+      answerRecords: '++id, questionId, bankId, timestamp',
+      markedQuestions: '++id, questionId, bankId, timestamp',
     });
   }
 }
@@ -108,4 +115,32 @@ export async function getWrongQuestions(
   const wrongIds = await getWrongQuestionIds(bankId);
   if (wrongIds.length === 0) return [];
   return db.questions.where('id').anyOf(wrongIds).toArray();
+}
+
+// ============================================================
+// 标记题目操作
+// ============================================================
+
+/** 标记一道题目 */
+export async function markQuestion(questionId: string, bankId: string): Promise<void> {
+  await db.markedQuestions.put({ questionId, bankId, timestamp: Date.now() });
+}
+
+/** 取消标记一道题目 */
+export async function unmarkQuestion(questionId: string): Promise<void> {
+  await db.markedQuestions.where('questionId').equals(questionId).delete();
+}
+
+/** 获取某个题库的所有标记题目 ID */
+export async function getMarkedQuestionIds(bankId: string): Promise<string[]> {
+  const records = await db.markedQuestions
+    .where('bankId')
+    .equals(bankId)
+    .toArray();
+  return records.map(r => r.questionId);
+}
+
+/** 清除某个题库的所有标记 */
+export async function clearMarkedQuestions(bankId: string): Promise<void> {
+  await db.markedQuestions.where('bankId').equals(bankId).delete();
 }

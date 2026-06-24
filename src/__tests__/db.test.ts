@@ -13,6 +13,10 @@ import {
   saveAnswerRecord,
   getWrongQuestionIds,
   getWrongQuestions,
+  markQuestion,
+  unmarkQuestion,
+  getMarkedQuestionIds,
+  clearMarkedQuestions,
 } from '../db'
 import type { QuestionBank, Question, AnswerRecord } from '../types'
 
@@ -123,6 +127,40 @@ describe('答题记录', () => {
   it('没有答题记录的题库返回空错题', async () => {
     const wrongIds = await getWrongQuestionIds('nonexistent')
     expect(wrongIds.length).toBe(0)
+  })
+})
+
+describe('标记题目', () => {
+  it('标记题目成功', async () => {
+    await markQuestion('q1', 'test-bank-1')
+    const ids = await getMarkedQuestionIds('test-bank-1')
+    expect(ids.length).toBe(1)
+    expect(ids[0]).toBe('q1')
+  })
+
+  it('标记多道题目', async () => {
+    await markQuestion('q2', 'test-bank-1')
+    await markQuestion('q3', 'test-bank-1')
+    const ids = await getMarkedQuestionIds('test-bank-1')
+    expect(ids.length).toBe(3)
+  })
+
+  it('取消标记一道题目', async () => {
+    await unmarkQuestion('q1')
+    const ids = await getMarkedQuestionIds('test-bank-1')
+    expect(ids.length).toBe(2)
+    expect(ids).not.toContain('q1')
+  })
+
+  it('清除该题库所有标记', async () => {
+    await clearMarkedQuestions('test-bank-1')
+    const ids = await getMarkedQuestionIds('test-bank-1')
+    expect(ids.length).toBe(0)
+  })
+
+  it('空题库返回空标记列表', async () => {
+    const ids = await getMarkedQuestionIds('nonexistent')
+    expect(ids.length).toBe(0)
   })
 })
 

@@ -52,6 +52,14 @@ export interface ParseResult {
   questions: Omit<Question, 'id' | 'bankId'>[];
 }
 
+/** 标记的题目（书签） */
+export interface MarkedQuestion {
+  id?: number;
+  questionId: string;
+  bankId: string;
+  timestamp: number;
+}
+
 /** 题目类型 */
 export type QuestionType = 'choice' | 'explain' | 'short_answer';
 

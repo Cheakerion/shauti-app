@@ -403,6 +403,7 @@ body {
 .q-dot:active { transform: scale(0.92); }
 .q-dot.q-correct { background: var(--correct-bg); border-color: var(--correct); color: var(--correct); }
 .q-dot.q-wrong { background: var(--wrong-bg); border-color: var(--wrong); color: var(--wrong); }
+.q-dot.q-marked { background: #fef3c7; border-color: #e67e22; color: #e67e22; }
 .q-dot.q-current { box-shadow: 0 0 0 2px var(--primary); font-weight: 700; }
 
 /* ---------- 辅助 ---------- */
@@ -413,11 +414,14 @@ body {
 .mb-16 { margin-bottom: 16px; }
 .gap-8 { gap: 8px; }
 
-/* ---------- 自评按钮 ---------- */
-.self-eval-btn.correct {
-  background: var(--correct);
+/* ---------- 标记按钮 ---------- */
+.btn-mark {
+  background: #e67e22;
+  color: #fff;
+}
+.btn-mark.marked {
+  background: transparent;
+  color: #e67e22;
+  border: 1.5px solid #e67e22;
 }
 
-.self-eval-btn.wrong {
-  background: var(--wrong);
-}
