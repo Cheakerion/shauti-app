@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# Local config (SDK path)
+local.properties
+
+# Signing — 密钥与口令不入库（文件保留在本地磁盘）
+keystore/
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store
