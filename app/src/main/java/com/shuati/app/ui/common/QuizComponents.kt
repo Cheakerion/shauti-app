@@ -134,6 +134,60 @@ fun StatsRow(
     }
 }
 
+/**
+ * 紧凑状态行（v3.1 弹层收纳布局）：
+ * [进度条 weight1] [统计槽] [筛选chip(可选)] [⚙ 设置]，单行 ~36dp，
+ * 模式切换/筛选/操作全部收进 ⚙ 唤出的底部弹层，题目区域最大化。
+ */
+@Composable
+fun CompactStatusRow(
+    progressCurrent: Int,
+    progressTotal: Int,
+    filterChip: String?,
+    onChipClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    statsContent: @Composable () -> Unit,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        QuizProgressBar(
+            current = progressCurrent,
+            total = progressTotal,
+            modifier = Modifier.weight(1f),
+        )
+        statsContent()
+        if (filterChip != null) {
+            Surface(
+                onClick = onChipClick,
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Text(
+                    filterChip,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+        }
+        Surface(
+            onClick = onSettingsClick,
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+        ) {
+            Text(
+                "⚙",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
+
 /** 选择题选项按钮状态 */
 enum class OptionUiState { DEFAULT, SELECTED, CORRECT, WRONG }
 

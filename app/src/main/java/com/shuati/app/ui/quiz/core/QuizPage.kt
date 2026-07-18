@@ -17,10 +17,12 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,12 +44,13 @@ import com.shuati.app.data.session.ChoiceFilter
 import com.shuati.app.data.session.PlayMode
 import com.shuati.app.data.session.QuizMode
 import com.shuati.app.domain.model.Question
+import com.shuati.app.ui.common.CompactStatusRow
 import com.shuati.app.ui.common.CompleteContent
 import com.shuati.app.ui.common.ConfirmDialog
 import com.shuati.app.ui.common.EmptyState
+import com.shuati.app.ui.common.ModeToggleRow
+import com.shuati.app.ui.common.ActionChipsRow
 import com.shuati.app.ui.common.QuestionGridDialog
-import com.shuati.app.ui.common.QuizProgressBar
-import com.shuati.app.ui.common.StatsRow
 import com.shuati.app.ui.theme.QuizTheme
 import kotlin.math.abs
 
@@ -75,6 +78,7 @@ fun ChoiceLikeQuizPage(
     var showGrid by remember { mutableStateOf(false) }
     var showRedoConfirm by remember { mutableStateOf(false) }
     var showClearConfirm by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
 
     if (!vm.loaded) {
         androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -178,92 +182,34 @@ fun ChoiceLikeQuizPage(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // 顺序/随机
-            com.shuati.app.ui.common.ModeToggleRow(
-                options = listOf("顺序刷题", "随机刷题"),
-                selectedIndex = if (vm.mode == QuizMode.SEQUENTIAL) 0 else 1,
-                onSelect = { vm.setModeTo(if (it == 0) QuizMode.SEQUENTIAL else QuizMode.RANDOM) },
-            )
-            // 快速/正常/背题
-            if (showQuickMode) {
-                com.shuati.app.ui.common.ModeToggleRow(
-                    options = listOf("⚡快速", "📝正常", "📖背题"),
-                    selectedIndex = when (vm.playMode) {
-                        PlayMode.QUICK -> 0
-                        PlayMode.NORMAL -> 1
-                        PlayMode.MEMORIZE -> 2
-                    },
-                    onSelect = {
-                        vm.setPlayModeTo(
-                            when (it) {
-                                0 -> PlayMode.QUICK
-                                1 -> PlayMode.NORMAL
-                                else -> PlayMode.MEMORIZE
-                            }
-                        )
-                    },
+            // 紧凑状态行：进度 + 对错计数 + 筛选chip + ⚙（控制项收进底部弹层）
+            CompactStatusRow(
+                progressCurrent = vm.currentIndex + if (vm.currentAnswered) 1 else 0,
+                progressTotal = vm.snapshot.size,
+                filterChip = when (vm.filterMode) {
+                    ChoiceFilter.ALL -> null
+                    ChoiceFilter.UNDONE -> "未做"
+                    ChoiceFilter.WRONG -> "做错"
+                    ChoiceFilter.DONE -> "已做"
+                },
+                onChipClick = { showSettings = true },
+                onSettingsClick = { showSettings = true },
+            ) {
+                Text("对", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${vm.sessionCorrect}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = QuizTheme.colors.correct,
+                    fontWeight = FontWeight.Bold,
                 )
-            } else {
-                com.shuati.app.ui.common.ModeToggleRow(
-                    options = listOf("📝正常", "📖背题"),
-                    selectedIndex = if (vm.playMode == PlayMode.MEMORIZE) 1 else 0,
-                    onSelect = { vm.setPlayModeTo(if (it == 1) PlayMode.MEMORIZE else PlayMode.NORMAL) },
+                Text("错", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${vm.sessionWrong}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = QuizTheme.colors.wrong,
+                    fontWeight = FontWeight.Bold,
                 )
             }
-            // 筛选
-            com.shuati.app.ui.common.ModeToggleRow(
-                options = listOf("全部", "未做", "做错", "已做"),
-                selectedIndex = when (vm.filterMode) {
-                    ChoiceFilter.ALL -> 0
-                    ChoiceFilter.UNDONE -> 1
-                    ChoiceFilter.WRONG -> 2
-                    ChoiceFilter.DONE -> 3
-                },
-                onSelect = {
-                    vm.setFilterTo(
-                        when (it) {
-                            0 -> ChoiceFilter.ALL
-                            1 -> ChoiceFilter.UNDONE
-                            2 -> ChoiceFilter.WRONG
-                            else -> ChoiceFilter.DONE
-                        }
-                    )
-                },
-            )
-            // 重做做错 / 全部清除
-            com.shuati.app.ui.common.ActionChipsRow(
-                actions = listOf(
-                    Triple("🔄 重做做错", false) { showRedoConfirm = true },
-                    Triple("全部清除", true) { showClearConfirm = true },
-                ),
-            )
-
-            QuizProgressBar(
-                current = vm.currentIndex + if (vm.currentAnswered) 1 else 0,
-                total = vm.snapshot.size,
-            )
-
-            StatsRow(
-                leftContent = {
-                    Row {
-                        Text("正确 ", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            "${vm.sessionCorrect}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = QuizTheme.colors.correct,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text("  错误 ", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            "${vm.sessionWrong}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = QuizTheme.colors.wrong,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                },
-                rightText = "${q?.idx ?: vm.currentIndex + 1} / ${if (vm.snapshot.isNotEmpty()) vm.snapshot.size else vm.questions.size}",
-            )
 
             // 筛选空态
             if (vm.snapshot.isEmpty()) {
@@ -309,6 +255,83 @@ fun ChoiceLikeQuizPage(
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // ---- 设置弹层：模式/筛选/操作全部收纳于此 ----
+    if (showSettings) {
+        ModalBottomSheet(
+            onDismissRequest = { showSettings = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("刷题设置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                // 顺序/随机
+                ModeToggleRow(
+                    options = listOf("顺序刷题", "随机刷题"),
+                    selectedIndex = if (vm.mode == QuizMode.SEQUENTIAL) 0 else 1,
+                    onSelect = { vm.setModeTo(if (it == 0) QuizMode.SEQUENTIAL else QuizMode.RANDOM) },
+                )
+                // 快速/正常/背题
+                if (showQuickMode) {
+                    ModeToggleRow(
+                        options = listOf("⚡快速", "📝正常", "📖背题"),
+                        selectedIndex = when (vm.playMode) {
+                            PlayMode.QUICK -> 0
+                            PlayMode.NORMAL -> 1
+                            PlayMode.MEMORIZE -> 2
+                        },
+                        onSelect = {
+                            vm.setPlayModeTo(
+                                when (it) {
+                                    0 -> PlayMode.QUICK
+                                    1 -> PlayMode.NORMAL
+                                    else -> PlayMode.MEMORIZE
+                                }
+                            )
+                        },
+                    )
+                } else {
+                    ModeToggleRow(
+                        options = listOf("📝正常", "📖背题"),
+                        selectedIndex = if (vm.playMode == PlayMode.MEMORIZE) 1 else 0,
+                        onSelect = { vm.setPlayModeTo(if (it == 1) PlayMode.MEMORIZE else PlayMode.NORMAL) },
+                    )
+                }
+                // 筛选
+                ModeToggleRow(
+                    options = listOf("全部", "未做", "做错", "已做"),
+                    selectedIndex = when (vm.filterMode) {
+                        ChoiceFilter.ALL -> 0
+                        ChoiceFilter.UNDONE -> 1
+                        ChoiceFilter.WRONG -> 2
+                        ChoiceFilter.DONE -> 3
+                    },
+                    onSelect = {
+                        vm.setFilterTo(
+                            when (it) {
+                                0 -> ChoiceFilter.ALL
+                                1 -> ChoiceFilter.UNDONE
+                                2 -> ChoiceFilter.WRONG
+                                else -> ChoiceFilter.DONE
+                            }
+                        )
+                    },
+                )
+                // 重做做错 / 全部清除
+                ActionChipsRow(
+                    actions = listOf(
+                        Triple("🔄 重做做错", false) { showRedoConfirm = true },
+                        Triple("全部清除", true) { showClearConfirm = true },
+                    ),
+                )
             }
         }
     }

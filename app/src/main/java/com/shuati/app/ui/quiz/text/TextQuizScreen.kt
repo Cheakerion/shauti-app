@@ -26,11 +26,13 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,13 +50,12 @@ import com.shuati.app.data.session.TextFilter
 import com.shuati.app.domain.model.Question
 import com.shuati.app.domain.model.QuestionType
 import com.shuati.app.ui.common.ActionChipsRow
+import com.shuati.app.ui.common.CompactStatusRow
 import com.shuati.app.ui.common.CompleteContent
 import com.shuati.app.ui.common.ConfirmDialog
 import com.shuati.app.ui.common.EmptyState
 import com.shuati.app.ui.common.ExplanationBox
 import com.shuati.app.ui.common.ModeToggleRow
-import com.shuati.app.ui.common.QuizProgressBar
-import com.shuati.app.ui.common.StatsRow
 import com.shuati.app.ui.quiz.core.PageType
 import com.shuati.app.ui.quiz.core.quizViewModel
 import com.shuati.app.ui.theme.QuizTheme
@@ -71,6 +72,7 @@ fun TextQuizScreen(navController: NavController, bankId: String, qTypeKey: Strin
 
     var showGrid by remember { mutableStateOf(false) }
     var showClearMarks by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
 
     if (!vm.loaded) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
@@ -152,55 +154,33 @@ fun TextQuizScreen(navController: NavController, bankId: String, qTypeKey: Strin
             Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ModeToggleRow(
-                options = listOf("📝正常", "📖背题"),
-                selectedIndex = if (vm.playMode == PlayMode.MEMORIZE) 1 else 0,
-                onSelect = { vm.setPlayModeTo(if (it == 1) PlayMode.MEMORIZE else PlayMode.NORMAL) },
-            )
-            ModeToggleRow(
-                options = listOf("全部", "已标记(${vm.markedIds.size})", "未标记"),
-                selectedIndex = when (vm.filterMode) {
-                    TextFilter.ALL -> 0
-                    TextFilter.MARKED -> 1
-                    TextFilter.UNMARKED -> 2
+            // 紧凑状态行：进度 + 已看/标记计数 + 筛选chip + ⚙（控制项收进底部弹层）
+            CompactStatusRow(
+                progressCurrent = vm.currentIndex + 1,
+                progressTotal = vm.snapshot.size,
+                filterChip = when (vm.filterMode) {
+                    TextFilter.ALL -> null
+                    TextFilter.MARKED -> "已标记"
+                    TextFilter.UNMARKED -> "未标记"
                 },
-                onSelect = {
-                    vm.setFilterTo(
-                        when (it) {
-                            0 -> TextFilter.ALL
-                            1 -> TextFilter.MARKED
-                            else -> TextFilter.UNMARKED
-                        }
-                    )
-                },
-            )
-            ActionChipsRow(
-                actions = listOf(Triple("🧹 消除标记", true) { showClearMarks = true }),
-            )
-
-            QuizProgressBar(current = vm.currentIndex + 1, total = vm.snapshot.size)
-
-            StatsRow(
-                leftContent = {
-                    Row {
-                        Text("已看 ", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            "${vm.revealedIds.size}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = QuizTheme.colors.correct,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text("  标记 ", style = MaterialTheme.typography.bodySmall)
-                        Text(
-                            "${vm.markedIds.size}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = QuizTheme.colors.marked,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                },
-                rightText = "${vm.currentIndex + 1} / ${vm.snapshot.size}",
-            )
+                onChipClick = { showSettings = true },
+                onSettingsClick = { showSettings = true },
+            ) {
+                Text("看", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${vm.revealedIds.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = QuizTheme.colors.correct,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text("标", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "${vm.markedIds.size}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = QuizTheme.colors.marked,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
 
             if (vm.snapshot.isEmpty()) {
                 when (vm.filterMode) {
@@ -237,6 +217,48 @@ fun TextQuizScreen(navController: NavController, bankId: String, qTypeKey: Strin
                         }
                     }
                 }
+            }
+        }
+    }
+
+    if (showSettings) {
+        ModalBottomSheet(
+            onDismissRequest = { showSettings = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("文本题设置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                ModeToggleRow(
+                    options = listOf("📝正常", "📖背题"),
+                    selectedIndex = if (vm.playMode == PlayMode.MEMORIZE) 1 else 0,
+                    onSelect = { vm.setPlayModeTo(if (it == 1) PlayMode.MEMORIZE else PlayMode.NORMAL) },
+                )
+                ModeToggleRow(
+                    options = listOf("全部", "已标记(${vm.markedIds.size})", "未标记"),
+                    selectedIndex = when (vm.filterMode) {
+                        TextFilter.ALL -> 0
+                        TextFilter.MARKED -> 1
+                        TextFilter.UNMARKED -> 2
+                    },
+                    onSelect = {
+                        vm.setFilterTo(
+                            when (it) {
+                                0 -> TextFilter.ALL
+                                1 -> TextFilter.MARKED
+                                else -> TextFilter.UNMARKED
+                            }
+                        )
+                    },
+                )
+                ActionChipsRow(
+                    actions = listOf(Triple("🧹 消除标记", true) { showClearMarks = true }),
+                )
             }
         }
     }
