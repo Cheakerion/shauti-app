@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
@@ -298,11 +299,13 @@ private fun TextQuestionCard(vm: TextQuizViewModel, q: Question) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // 题干：有英文术语时正面只显示英文
-            Text(
-                if (isExplainWithEng) q.engStem!! else q.stem,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-            )
+            SelectionContainer {
+                Text(
+                    if (isExplainWithEng) q.engStem!! else q.stem,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
 
             if (!expanded) {
                 OutlinedButton(
@@ -311,7 +314,9 @@ private fun TextQuestionCard(vm: TextQuizViewModel, q: Question) {
                 ) { Text("👁 查看答案") }
             } else {
                 if (isExplainWithEng) {
-                    Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                    SelectionContainer {
+                        Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                    }
                 }
                 ExplanationBox("参考答案：", q.answer)
                 q.explanation?.let { ExplanationBox("解析：", it) }

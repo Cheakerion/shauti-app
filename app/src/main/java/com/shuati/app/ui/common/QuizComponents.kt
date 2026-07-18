@@ -3,6 +3,7 @@ package com.shuati.app.ui.common
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -249,12 +250,14 @@ fun ExplanationBox(label: String, content: String, modifier: Modifier = Modifier
         shape = MaterialTheme.shapes.medium,
         color = QuizTheme.colors.explainContainer,
     ) {
-        Row(Modifier.padding(12.dp)) {
-            Text(
-                buildString { append(label); append(content) },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+        SelectionContainer {
+            Row(Modifier.padding(12.dp)) {
+                Text(
+                    buildString { append(label); append(content) },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }

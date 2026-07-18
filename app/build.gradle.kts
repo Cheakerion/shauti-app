@@ -19,8 +19,8 @@ android {
         minSdk = 21
         targetSdk = 36
         // versionCode ≙ version.json 的 update 序号（旧版目前 14），随每次发布 +1
-        versionCode = 16
-        versionName = "3.1"
+        versionCode = 17
+        versionName = "3.2"
     }
 
     signingConfigs {

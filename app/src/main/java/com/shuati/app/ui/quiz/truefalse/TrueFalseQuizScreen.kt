@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -56,7 +57,9 @@ private fun TrueFalseQuestionCard(vm: ChoiceQuizViewModel, q: Question) {
             Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            SelectionContainer {
+                Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 listOf("正确", "错误").forEach { label ->
@@ -101,12 +104,14 @@ private fun TrueFalseQuestionCard(vm: ChoiceQuizViewModel, q: Question) {
 
             if (answered && !memorize) {
                 val correct = selected == q.answer
-                Text(
-                    if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (correct) quiz.correct else quiz.wrong,
-                )
+                SelectionContainer {
+                    Text(
+                        if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (correct) quiz.correct else quiz.wrong,
+                    )
+                }
                 if (vm.autoAdvancing && vm.currentQuestion?.id == q.id) {
                     Text("✓ 自动跳转下一题...", style = MaterialTheme.typography.bodySmall, color = quiz.correct)
                 }

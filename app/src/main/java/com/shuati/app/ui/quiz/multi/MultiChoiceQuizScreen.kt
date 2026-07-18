@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -53,7 +54,9 @@ private fun MultiQuestionCard(vm: MultiChoiceQuizViewModel, q: Question) {
             Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            SelectionContainer {
+                Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            }
 
             q.options.forEach { opt ->
                 val inAnswer = q.answer.contains(opt.label)
@@ -95,12 +98,14 @@ private fun MultiQuestionCard(vm: MultiChoiceQuizViewModel, q: Question) {
 
             if (answered && !memorize) {
                 val correct = userAnswer == q.answer
-                Text(
-                    if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (correct) quiz.correct else quiz.wrong,
-                )
+                SelectionContainer {
+                    Text(
+                        if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (correct) quiz.correct else quiz.wrong,
+                    )
+                }
                 q.explanation?.let { ExplanationBox("解析：", it) }
             }
 
