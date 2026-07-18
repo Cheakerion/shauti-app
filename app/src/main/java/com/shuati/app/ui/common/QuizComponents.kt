@@ -226,20 +226,20 @@ fun OptionButton(
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Text(
-                "$label.",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = fg,
-            )
-            Text(
-                text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = fg,
-                modifier = Modifier.padding(start = 8.dp),
-            )
+                Text(
+                    "$label.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = fg,
+                )
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = fg,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
         }
-    }
 }
 
 /** 解析/答案浅蓝框 */
@@ -250,8 +250,7 @@ fun ExplanationBox(label: String, content: String, modifier: Modifier = Modifier
         shape = MaterialTheme.shapes.medium,
         color = QuizTheme.colors.explainContainer,
     ) {
-        SelectionContainer {
-            Row(Modifier.padding(12.dp)) {
+        Row(Modifier.padding(12.dp)) {
                 Text(
                     buildString { append(label); append(content) },
                     style = MaterialTheme.typography.bodyMedium,
@@ -259,7 +258,6 @@ fun ExplanationBox(label: String, content: String, modifier: Modifier = Modifier
                 )
             }
         }
-    }
 }
 
 /** 题号跳转面板：网格（绿=对、红=错、蓝圈=当前），点击跳题 */

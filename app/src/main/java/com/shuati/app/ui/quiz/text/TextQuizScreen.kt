@@ -214,7 +214,9 @@ fun TextQuizScreen(navController: NavController, bankId: String, qTypeKey: Strin
                         Column(
                             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 4.dp),
                         ) {
-                            TextQuestionCard(vm, pageQ)
+                            SelectionContainer {
+                                TextQuestionCard(vm, pageQ)
+                            }
                         }
                     }
                 }
@@ -299,13 +301,11 @@ private fun TextQuestionCard(vm: TextQuizViewModel, q: Question) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             // 题干：有英文术语时正面只显示英文
-            SelectionContainer {
-                Text(
-                    if (isExplainWithEng) q.engStem!! else q.stem,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+            Text(
+                if (isExplainWithEng) q.engStem!! else q.stem,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
 
             if (!expanded) {
                 OutlinedButton(
@@ -314,9 +314,7 @@ private fun TextQuestionCard(vm: TextQuizViewModel, q: Question) {
                 ) { Text("👁 查看答案") }
             } else {
                 if (isExplainWithEng) {
-                    SelectionContainer {
-                        Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-                    }
+                    Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
                 }
                 ExplanationBox("参考答案：", q.answer)
                 q.explanation?.let { ExplanationBox("解析：", it) }

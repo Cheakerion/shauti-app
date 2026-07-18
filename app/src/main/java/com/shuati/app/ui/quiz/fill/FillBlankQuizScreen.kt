@@ -55,9 +55,7 @@ private fun FillBlankQuestionCard(vm: FillBlankQuizViewModel, q: Question) {
             Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            SelectionContainer {
-                Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            }
+            Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
 
             if (!revealed) {
                 OutlinedButton(

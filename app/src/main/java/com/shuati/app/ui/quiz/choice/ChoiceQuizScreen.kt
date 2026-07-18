@@ -56,9 +56,7 @@ fun ChoiceQuestionCard(vm: ChoiceQuizViewModel, q: Question) {
             Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            SelectionContainer {
-                Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            }
+            Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
 
             q.options.forEach { opt ->
                 val isCorrectOpt = opt.label == q.answer
@@ -93,14 +91,12 @@ fun ChoiceQuestionCard(vm: ChoiceQuizViewModel, q: Question) {
             // 判分反馈
             if (answered && !memorize) {
                 val correct = selected == q.answer
-                SelectionContainer {
-                    Text(
-                        if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (correct) quiz.correct else quiz.wrong,
-                    )
-                }
+                Text(
+                    if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (correct) quiz.correct else quiz.wrong,
+                )
                 if (vm.autoAdvancing && isCurrent) {
                     Text(
                         "✓ 自动跳转下一题...",

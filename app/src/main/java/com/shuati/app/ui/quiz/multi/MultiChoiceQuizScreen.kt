@@ -54,9 +54,7 @@ private fun MultiQuestionCard(vm: MultiChoiceQuizViewModel, q: Question) {
             Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            SelectionContainer {
-                Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-            }
+            Text(q.stem, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
 
             q.options.forEach { opt ->
                 val inAnswer = q.answer.contains(opt.label)
@@ -98,14 +96,12 @@ private fun MultiQuestionCard(vm: MultiChoiceQuizViewModel, q: Question) {
 
             if (answered && !memorize) {
                 val correct = userAnswer == q.answer
-                SelectionContainer {
-                    Text(
-                        if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (correct) quiz.correct else quiz.wrong,
-                    )
-                }
+                Text(
+                    if (correct) "✅ 正确！" else "❌ 错误！正确答案是 ${q.answer}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (correct) quiz.correct else quiz.wrong,
+                )
                 q.explanation?.let { ExplanationBox("解析：", it) }
             }
 
