@@ -35,6 +35,8 @@ export const api = {
   checkArchiveUpdate: (id) => req('POST', `/api/archives/${encodeURIComponent(id)}/check-update`),
   getNotes: (id) => req('GET', `/api/archives/${encodeURIComponent(id)}/notes`),
   putNotes: (id, items) => req('PUT', `/api/archives/${encodeURIComponent(id)}/notes`, { items }),
+  getAiThreads: (id) => req('GET', `/api/archives/${encodeURIComponent(id)}/ai-threads`),
+  putAiThreads: (id, items) => req('PUT', `/api/archives/${encodeURIComponent(id)}/ai-threads`, { items }),
   getProgress: (id) => req('GET', `/api/archives/${encodeURIComponent(id)}/progress`),
   putProgress: (id, patch) => req('PUT', `/api/archives/${encodeURIComponent(id)}/progress`, patch),
   resetProgress: (id, what) => req('POST', `/api/archives/${encodeURIComponent(id)}/reset`, { what }),
@@ -49,11 +51,11 @@ export const api = {
 };
 
 /** DeepSeek 流式问答：onDelta(text), 返回完整文本 */
-export async function aiChat({ archiveId, sectionTitle, quote, messages }, { onDelta, signal } = {}) {
+export async function aiChat({ archiveId, sectionTitle, quote, mode, messages }, { onDelta, signal } = {}) {
   const res = await fetch('/api/ai/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ archiveId, sectionTitle, quote, messages }),
+    body: JSON.stringify({ archiveId, sectionTitle, quote, mode, messages }),
     signal,
   });
   if (!res.ok || !res.body) throw new Error('AI 请求失败 (' + res.status + ')');

@@ -60,9 +60,9 @@ function sources(cfg) {
     let p = (cfg.update && cfg.update.path) || '';
     p = String(p).replace(/^\/+/, '');
     if (p && !p.endsWith('/')) p += '/';
-    // 国内网络 jsDelivr 通常比 raw.githubusercontent 稳，放前面
-    for (const x of branches) list.push(`https://cdn.jsdelivr.net/gh/${repo}@${x}/${p}version.json`);
+    // raw 反映最近一次 push（jsDelivr 的分支缓存可能滞后数小时），所以 raw 优先、jsDelivr 兜底
     for (const x of branches) list.push(`https://raw.githubusercontent.com/${repo}/${x}/${p}version.json`);
+    for (const x of branches) list.push(`https://cdn.jsdelivr.net/gh/${repo}@${x}/${p}version.json`);
   }
   return list;
 }
@@ -84,7 +84,7 @@ async function check() {
   let used = '';
   for (const url of urls) {
     try {
-      remote = await fetchJSON(url);
+      remote = await fetchJSON(url, 6000);
       used = url;
       break;
     } catch (e) {

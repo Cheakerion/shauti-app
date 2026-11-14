@@ -163,7 +163,7 @@
     if (!r) return false;
     const rect = r.getBoundingClientRect();
     const y = rect.top + window.scrollY - window.innerHeight * 0.35;
-    window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+    window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
     return true;
   }
 
@@ -487,13 +487,13 @@
       const el = sectionEl(id);
       if (!el) return false;
       const y = el.getBoundingClientRect().top + window.scrollY - 8;
-      window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      window.scrollTo({ top: Math.max(0, y), behavior: 'auto' });
       return true;
     },
     gotoElement(id) {
       const el = doc.getElementById(id);
       if (!el) return false;
-      el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      el.scrollIntoView({ block: 'start', behavior: 'auto' });
       el.classList.add('fy-flash');
       setTimeout(() => el.classList.remove('fy-flash'), 1600);
       return true;
@@ -583,7 +583,7 @@
       sel.addRange(r);
       if (!noScroll) {
         const rect = r.getBoundingClientRect();
-        window.scrollTo({ top: Math.max(0, rect.top + window.scrollY - window.innerHeight * 0.35), behavior: 'smooth' });
+        window.scrollTo({ top: Math.max(0, rect.top + window.scrollY - window.innerHeight * 0.35), behavior: 'auto' });
       }
       return true;
     },

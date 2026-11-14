@@ -1,6 +1,6 @@
 {
-  "version": "0.1.1",
-  "update": 2,
-  "notes": "新增：桌面图标与无黑框启动、前进/后退导航、GitHub 在线存档、更新提示、链接导入、网盘作者通道发布",
-  "url": "https://github.com/makainuo/shauti-app/releases/tag/v0.1.1"
+  "version": "0.1.2",
+  "update": 3,
+  "notes": "批注去重（同段文字只留一条，追问接在后面）、AI 对话可回看、概念提问直接解释不再套考试语境、恢复阅读位置不再翻滚/闪封面、用户数据移到 %APPDATA% 不怕覆盖安装",
+  "url": "https://github.com/makainuo/shauti-app/releases/tag/v0.1.2"
 }

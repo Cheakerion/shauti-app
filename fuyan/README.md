@@ -55,8 +55,8 @@ node server.js --port 5300     # 指定端口
 | **阅读** | 存档自带原站样式与排版；按大章节跳转、滚动联动、阅读位置记忆、深浅色；左上角 ←/→ 前进后退（Alt+←/→） |
 | **全站搜索** | `Ctrl+K`：章节 / 小标题 / 题目 / 批注一起搜，回车直达 |
 | **刷题** | 顺序/随机 · 快速/正常/背题 · 全部/未做/做错/已做/收藏 · 专题/标签筛选 · 模拟卷 30 题 · 题号面板 · 断点续刷 · 完成页 |
-| **批注** | 选中文字 → 「批注 / 问 DeepSeek / 站内查」；长按（0.6 秒）自动选中整句；批注永远贴在原文位置；管理页统一查看/定位/删除；正文里点高亮也能看/改/删 |
-| **问 DeepSeek** | 选区提问走流式回答，回答自动存成批注，可继续追问；右下角「问 AI」可自由提问 |
+| **批注** | 选中文字 → 「批注 / 问 DeepSeek / 站内查」；长按（0.6 秒）自动选中整句；批注永远贴在原文位置；管理页统一查看/定位/删除；正文里点高亮也能看/改/删；**同一段文字只有一条批注**，再编辑就是改这一条 |
+| **问 DeepSeek** | 选区提问直接解释这个概念（不再套考试语境），流式回答自动存成批注；**同一个词再点开就是原来的对话，追问接在后面**；抽屉右上角「记录」能看到全部历史对话，关掉软件也在 |
 | **夸克网盘（作者通道）** | 只有作者本机可用：列出「dsh传输」→ 下载导入；存档可一键「发布到网盘」，同名新包顶替、旧包自动移进「旧测试」 |
 | **GitHub 在线存档** | 设置里填 `archives.json` 地址，存档库直接列出作者发布的存档，点一下下载导入 |
 | **AI 门禁** | 没配 DeepSeek Key 时，点「问 AI」会弹引导（DeepSeek 官方没有扫码登录，只能填 Key） |
@@ -80,10 +80,6 @@ fuyan/
 │  ├─ index.html  css/app.css
 │  ├─ js/                  # app/library/reader/quiz/notes/search/settings/ai/e2e
 │  └─ content/             # 注入存档文档的 runtime.js 与 overlay.css
-├─ data/
-│  ├─ config.json          # AI/网盘/更新源/外观配置
-│  ├─ archives/<id>/       # 存档：manifest.json + content.html + questions.json
-│  └─ user/<id>/           # 批注 annotations.json、进度 progress.json
 ├─ tools/
 │  ├─ build_archive.py     # 复习站 HTML → 存档
 │  ├─ make-catalog.mjs     # 生成 GitHub 在线存档清单 archives.json
@@ -92,6 +88,19 @@ fuyan/
 │  ├─ e2e.mjs              # 无头 Edge 端到端测试
 │  └─ ps/*.ps1             # 系统对话框 / zip 压缩解压
 └─ docs/                   # 架构、存档格式、发布与分发、待办
+```
+
+**用户数据不在程序目录里**（换新版本时整个文件夹替换也不会丢）：
+
+```
+%APPDATA%\fuyan\                 # Windows；可用环境变量 FUYAN_DATA 改
+├─ config.json                   # AI / 网盘 / 更新源 / 外观
+├─ archives/<id>/                # 存档：manifest.json + content.html + questions.json
+└─ user/<id>/                    # 批注 annotations.json、对话 ai-threads.json、进度 progress.json
+```
+
+> 从旧版本升级：程序目录里的 `data/` 会在第一次启动时自动整份搬到 `%APPDATA%\fuyan`，旧目录原样留着当备份，可以手动删。
+
 ```
 
 ---

@@ -425,12 +425,152 @@ async function scenarioNav() {
   ok('导航: 后退按钮可用', !$('#btn-back').disabled);
 }
 
+async function scenarioAiBubble() {
+  await goto('#/read/infectious');
+  const w = await getReader();
+  await sleep(300);
+  const doc = w.document;
+  // 找一段可见的表格文字，滚到中间再选中它（不滚动，气泡才会留在原位）
+  const el = [...doc.querySelectorAll('td,li,p')].find((e) => e.textContent.includes('波状热'));
+  ok('气泡: 找到正文', !!el);
+  if (!el) return;
+  el.scrollIntoView({ block: 'center', behavior: 'instant' });
+  await sleep(500);
+  const walker = doc.createTreeWalker(el, w.NodeFilter.SHOW_TEXT);
+  let node = null;
+  let n;
+  while ((n = walker.nextNode())) {
+    if (n.nodeValue.includes('波状热')) { node = n; break; }
+  }
+  ok('气泡: 找到文字节点', !!node);
+  if (!node) return;
+  const i = node.nodeValue.indexOf('波状热');
+  const r = doc.createRange();
+  r.setStart(node, i);
+  r.setEnd(node, i + 3);
+  const sel = w.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(r);
+  await sleep(500);
+  ok('气泡: 出现', !!$('.selbubble'), ($('.selbubble') || {}).textContent || '');
+  ok('气泡: 位置在视口内', (() => {
+    const b = $('.selbubble');
+    if (!b) return false;
+    const rect = b.getBoundingClientRect();
+    return rect.top > 0 && rect.bottom < window.innerHeight;
+  })());
+}
+
+async function scenarioAiChat() {
+  const A = 'infectious';
+  const base = {
+    kind: 'ai', note: '', section: '总论',
+    anchor: { start: 1000, end: 1003 }, quote: '稽留热',
+  };
+  const note1 = { ...base, id: 'e2e_n1', createdAt: '2026-01-01T00:00:00+08:00', updatedAt: '2026-01-01T00:00:01+08:00',
+    ai: { messages: [{ role: 'user', content: '解释「稽留热」' }, { role: 'assistant', content: '稽留热是体温持续 39–40℃。' }] } };
+  const note2 = { ...base, id: 'e2e_n2', createdAt: '2026-01-02T00:00:00+08:00', updatedAt: '2026-01-02T00:00:01+08:00',
+    ai: { messages: [{ role: 'user', content: '继续：和弛张热怎么分？' }, { role: 'assistant', content: '弛张热 24h 波动 >1℃。' }] } };
+  await api.putNotes(A, [note1, note2]);
+  await api.putAiThreads(A, [{ id: 'e2e_t1', title: '自由对话', section: '',
+    messages: [{ role: 'user', content: '发热怎么分类' }, { role: 'assistant', content: '按热型分六类。' }],
+    createdAt: '2026-01-03T00:00:00+08:00', updatedAt: '2026-01-03T00:00:01+08:00' }]);
+
+  await goto('#/read/infectious');
+  await getReader();
+  await sleep(700);
+
+  const after = await api.getNotes(A);
+  ok('AI批注: 同选区重复项已合并', after.notes.items.length === 1, 'n=' + after.notes.items.length);
+  const merged = after.notes.items[0] || { ai: { messages: [] } };
+  ok('AI批注: 合并后上下文保留 4 条', (merged.ai.messages || []).length === 4, 'msgs=' + (merged.ai.messages || []).length);
+
+  $('#reader-ai').click();
+  await sleep(500);
+  ok('对话记录: 抽屉打开', !$('#drawer').hidden);
+  ok('对话记录: 批注 + 自由对话都在', $$('.ai-hist-item').length === 2, 'items=' + $$('.ai-hist-item').length);
+
+  const noteBtn = $$('.ai-hist-item').find((b) => b.dataset.k === 'note');
+  if (noteBtn) noteBtn.click();
+  await sleep(300);
+  ok('对话记录: 能打开批注对话', (($('#drawer-body').textContent) || '').includes('稽留热'));
+  ok('对话记录: 历史消息完整', $$('#drawer-body .ai-msg').length === 4, 'msgs=' + $$('#drawer-body .ai-msg').length);
+
+  $('#drawer-close').click();
+  await sleep(200);
+  $('#reader-ai').click();
+  await sleep(500);
+  ok('对话记录: 关闭后仍可查看', $$('.ai-hist-item').length === 2);
+  $('#drawer-close').click();
+
+  await api.putNotes(A, []);
+  await api.putAiThreads(A, []);
+}
+
+async function scenarioScrollRestore() {
+  await goto('#/read/infectious');
+  let w = await getReader();
+  await sleep(400);
+  const original = w.scrollY;
+  const target = original > 1000 ? original : 3200;
+  w.__fuyan.api.scrollToY(target);
+  await sleep(1400); // 等进度保存（900ms debounce）
+  await goto('#/');
+  await sleep(400);
+  await goto('#/read/infectious');
+  w = await getReader();
+  await sleep(500);
+  const y = w.scrollY;
+  ok('阅读位置: 回来还在原位', Math.abs(y - target) < 200, 'y=' + Math.round(y));
+  const sb = w.getComputedStyle(w.document.documentElement).scrollBehavior;
+  ok('阅读位置: 不做平滑滚动', sb === 'auto', 'scroll-behavior=' + sb);
+  const op = $('#reader-frame').style.opacity;
+  ok('阅读位置: 跳完才显示', op === '1', 'opacity=' + op);
+
+  // 还原用户原来的位置，别把测试当成阅读记录
+  w.__fuyan.api.scrollToY(original);
+  await sleep(1300);
+}
+
+async function scenarioFlash() {
+  await goto('#/read/infectious');
+  let w = await getReader();
+  await sleep(400);
+  const original = w.scrollY;
+  const target = original > 1000 ? original : 3200;
+  w.__fuyan.api.scrollToY(target);
+  await sleep(1400);
+  await goto('#/');
+  await sleep(300);
+  location.hash = '#/read/infectious';
+  const samples = [];
+  for (let i = 0; i < 40; i++) {
+    await sleep(16);
+    const f = $('#reader-frame');
+    const veil = $('#reader-veil');
+    samples.push({
+      op: f ? f.style.opacity : '-',
+      vis: f ? f.style.visibility : '-',
+      veil: !!veil,
+      y: f && f.contentWindow ? Math.round(f.contentWindow.scrollY) : -1,
+    });
+  }
+  const bad = samples.filter((s) => s.vis === 'visible' && s.op === '1' && s.y >= 0 && s.y < target - 200);
+  ok('切换: 显示时已经在原位置（不闪封面）', bad.length === 0, 'bad=' + bad.length + ' / ' + samples.length);
+  const last = samples[samples.length - 1];
+  ok('切换: 最终可见且无遮罩', last.vis === 'visible' && !last.veil, JSON.stringify(last));
+  w = await getReader();
+  w.__fuyan.api.scrollToY(original);
+  await sleep(1300);
+}
+
 export async function run(name) {
   const map = {
     reader: scenarioReader, quiz: scenarioQuiz, search: scenarioSearch,
     settings: scenarioSettings, ai: scenarioAi, digestive: scenarioDigestive, done: scenarioDone,
     library: scenarioLibrary, longpress: scenarioLongpress, quark: scenarioQuark, aigate: scenarioAiGate,
-    update: scenarioUpdate, nav: scenarioNav,
+    update: scenarioUpdate, nav: scenarioNav, aibubble: scenarioAiBubble, aichat: scenarioAiChat, scroll: scenarioScrollRestore,
+    flash: scenarioFlash,
   };
   const fn = map[name];
   let err = '';

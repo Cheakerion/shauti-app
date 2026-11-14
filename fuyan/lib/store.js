@@ -7,10 +7,37 @@
 
 const fs = require('fs');
 const fsp = fs.promises;
+const os = require('os');
 const path = require('path');
 
 const APP_ROOT = path.resolve(__dirname, '..');
-const DATA_DIR = process.env.FUYAN_DATA || path.join(APP_ROOT, 'data');
+const LEGACY_DIR = path.join(APP_ROOT, 'data');
+
+/** 数据目录放在程序目录之外：换新版本时整个文件夹替换也不会丢批注 / 对话 */
+function defaultDataDir() {
+  const base = process.env.APPDATA || (process.platform === 'win32' ? path.join(os.homedir(), 'AppData', 'Roaming') : '');
+  if (base) return path.join(base, 'fuyan');
+  return path.join(os.homedir(), '.local', 'share', 'fuyan');
+}
+
+const DATA_DIR = process.env.FUYAN_DATA || defaultDataDir();
+
+// 老版本数据在 <程序目录>/data：第一次启动时整份搬过去，之后程序目录可以随便覆盖
+if (!process.env.FUYAN_DATA && DATA_DIR !== LEGACY_DIR) {
+  try {
+    const legacyCfg = path.join(LEGACY_DIR, 'config.json');
+    const newCfg = path.join(DATA_DIR, 'config.json');
+    if (fs.existsSync(legacyCfg) && !fs.existsSync(newCfg)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.cpSync(LEGACY_DIR, DATA_DIR, { recursive: true });
+      fs.writeFileSync(path.join(DATA_DIR, '.migrated-from'), LEGACY_DIR + '\n', 'utf8');
+      console.log('[store] 已把旧数据迁移到', DATA_DIR);
+    }
+  } catch (e) {
+    console.warn('[store] 迁移旧数据失败（继续用新目录）：', e.message);
+  }
+}
+
 const ARCHIVE_DIR = path.join(DATA_DIR, 'archives');
 const USER_DIR = path.join(DATA_DIR, 'user');
 const EXPORT_DIR = path.join(DATA_DIR, 'exports');
@@ -201,6 +228,25 @@ async function saveNotes(id, items) {
   return next;
 }
 
+const EMPTY_THREADS = { schema: 'fuyan/ai-threads@1', archiveId: '', items: [], updatedAt: '' };
+
+/** AI 对话记录（选区问答 + 自由追问），和批注分开存，关闭软件也在 */
+async function getAiThreads(id) {
+  const v = await readJSON(userFile(id, 'ai-threads.json'), null);
+  return v ? { ...EMPTY_THREADS, ...v } : { ...EMPTY_THREADS, archiveId: id };
+}
+
+async function saveAiThreads(id, items) {
+  const next = {
+    schema: 'fuyan/ai-threads@1',
+    archiveId: id,
+    items: (Array.isArray(items) ? items : []).slice(0, 300),
+    updatedAt: nowISO(),
+  };
+  await writeJSON(userFile(id, 'ai-threads.json'), next);
+  return next;
+}
+
 async function getProgress(id) {
   const v = await readJSON(userFile(id, 'progress.json'), null);
   if (!v) return { ...JSON.parse(JSON.stringify(EMPTY_PROGRESS)), archiveId: id };
@@ -251,6 +297,8 @@ module.exports = {
   safeId,
   getNotes,
   saveNotes,
+  getAiThreads,
+  saveAiThreads,
   getProgress,
   saveProgress,
   resetProgress,

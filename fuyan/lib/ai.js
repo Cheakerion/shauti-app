@@ -98,26 +98,32 @@ function httpPost(urlStr, payload, headers, onEvent, signal) {
   });
 }
 
-function buildSystemPrompt({ archiveTitle, sectionTitle, quote }) {
-  const parts = [
+function buildSystemPrompt({ mode, archiveTitle, sectionTitle, quote }) {
+  const concept = [
+    '你是「复研」里的学习助教。用户读资料时选了一段文字，想知道它到底是什么意思。',
+    '直接对着这个词/这句话讲：① 一句话给定义或结论；② 2–4 个关键点（机制、数字、区别）；③ 容易和什么混、错在哪，一句话点破。',
+    '只讲概念本身（定义、机制、区别、易错点），不要联系课程进度或应试场景；不要客套、不要说“根据你选中的内容”；中文作答，术语可括注英文；总长度 260 字以内。',
+  ];
+  const exam = [
     '你是「复研」复习软件里的学习助教，面向医学本科生。',
     archiveTitle ? `当前课程：《${archiveTitle}》。` : '',
     sectionTitle ? `用户正在阅读的小节：${sectionTitle}。` : '',
     '回答要求：① 先用一句话给结论/定义；② 再列 2–4 个最关键的知识点（有数字就写数字）；③ 最后一句写最容易混淆或最容易错的地方。',
     '语言简洁，中文作答，术语可括注英文；总长度控制在 220 字以内，不要客套、不要展开成论文。',
   ];
-  if (quote) parts.push(`用户选中的原文：「${quote}」`);
+  const parts = mode === 'exam' ? exam : concept;
+  if (quote) parts.push(`选中的原文：「${quote}」`);
   return parts.filter(Boolean).join('\n');
 }
 
-async function chat({ cfg, archiveTitle, sectionTitle, quote, messages, onEvent, signal }) {
+async function chat({ cfg, mode, archiveTitle, sectionTitle, quote, messages, onEvent, signal }) {
   const key = resolveApiKey(cfg);
   if (!key) throw new Error('没有可用的 DeepSeek API Key：请在「设置」里填写');
   const base = (cfg.ai.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, '');
   const model = cfg.ai.model || 'deepseek-flash';
   const payload = {
     model,
-    messages: [{ role: 'system', content: buildSystemPrompt({ archiveTitle, sectionTitle, quote }) }, ...messages],
+    messages: [{ role: 'system', content: buildSystemPrompt({ mode, archiveTitle, sectionTitle, quote }) }, ...messages],
     stream: true,
     temperature: typeof cfg.ai.temperature === 'number' ? cfg.ai.temperature : 0.3,
     max_tokens: cfg.ai.maxTokens || 1600,

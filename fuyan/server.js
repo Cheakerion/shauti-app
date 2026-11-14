@@ -196,6 +196,16 @@ const api = {
     send(res, 200, { ok: true, notes });
   },
 
+  async getAiThreads(req, res, ctx) {
+    send(res, 200, { ok: true, threads: await store.getAiThreads(ctx.params.id) });
+  },
+
+  async putAiThreads(req, res, ctx) {
+    const body = await readBody(req);
+    const threads = await store.saveAiThreads(ctx.params.id, body.items || []);
+    send(res, 200, { ok: true, threads });
+  },
+
   async getProgress(req, res, ctx) {
     send(res, 200, { ok: true, progress: await store.getProgress(ctx.params.id) });
   },
@@ -308,6 +318,7 @@ const api = {
     try {
       const { text, model } = await ai.chat({
         cfg,
+        mode: body.mode || 'concept',
         archiveTitle,
         sectionTitle: body.sectionTitle || '',
         quote: body.quote || '',
@@ -443,6 +454,8 @@ const ROUTES = [
   ['POST', /^\/api\/archives\/([\w.-]+)\/export$/, api.exportArchive],
   ['GET', /^\/api\/archives\/([\w.-]+)\/notes$/, api.getNotes],
   ['PUT', /^\/api\/archives\/([\w.-]+)\/notes$/, api.putNotes],
+  ['GET', /^\/api\/archives\/([\w.-]+)\/ai-threads$/, api.getAiThreads],
+  ['PUT', /^\/api\/archives\/([\w.-]+)\/ai-threads$/, api.putAiThreads],
   ['GET', /^\/api\/archives\/([\w.-]+)\/progress$/, api.getProgress],
   ['PUT', /^\/api\/archives\/([\w.-]+)\/progress$/, api.putProgress],
   ['POST', /^\/api\/archives\/([\w.-]+)\/reset$/, api.resetProgress],

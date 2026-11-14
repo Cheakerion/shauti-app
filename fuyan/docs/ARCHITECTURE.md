@@ -39,10 +39,14 @@ fuyan/
 │  ├─ index.html  css/app.css
 │  ├─ js/{app,core,api,library,reader,quiz,notes,search,settings,ai,e2e}.js
 │  └─ content/{runtime.js,overlay.css}   # 注入存档文档
-├─ data/{config.json, archives/, user/, exports/, tmp/}
 ├─ tools/{build_archive.py, e2e.mjs, ps/*.ps1}
 └─ docs/
 ```
+
+用户数据**不在程序目录**，默认 `%APPDATA%\fuyan`（可用 `FUYAN_DATA` 覆盖）：
+`config.json`、`archives/<id>/`、`user/<id>/{annotations,ai-threads,progress}.json`。
+旧版本的 `<程序目录>/data/` 会在首次启动时自动迁移过去，程序目录之后可以整个替换。
+
 
 ---
 
@@ -100,7 +104,8 @@ __fuyan.host = { onSelection, onSelectionClear, onSectionChange, onScroll,
 | POST | `/api/archives/import` | `{path}` 导入（zip/文件夹） |
 | POST | `/api/archives/pick` | `{kind:zip\|folder}` 弹系统对话框并导入 |
 | POST | `/api/archives/:id/export` | 导出 zip |
-| GET/PUT | `/api/archives/:id/notes` | 批注 |
+| GET/PUT | `/api/archives/:id/notes` | 批注（同一段文字只存一条） |
+| GET/PUT | `/api/archives/:id/ai-threads` | 无选区的自由对话记录 |
 | GET/PUT | `/api/archives/:id/progress` | 进度 / 会话 |
 | POST | `/api/archives/:id/reset` | `{what:quiz\|all}` 重置 |
 | POST | `/api/archives/:id/check-update` | 比对网盘同名文件 |
@@ -116,7 +121,7 @@ __fuyan.host = { onSelection, onSelectionClear, onSectionChange, onScroll,
 ### 4.3 数据文件
 
 ```jsonc
-// data/user/<id>/annotations.json
+// %APPDATA%/fuyan/user/<id>/annotations.json
 { "items": [{
   "id": "a_...", "kind": "note|ai",
   "anchor": { "start": 1234, "end": 1268, "quote": "…", "prefix": "…", "suffix": "…" },
@@ -126,8 +131,16 @@ __fuyan.host = { onSelection, onSelectionClear, onSectionChange, onScroll,
 }] }
 ```
 
+> 同一段文字（anchor 相同）只会有一条批注：AI 追问追加到 `ai.messages` 末尾，不再新建条目；
+> 老数据里重复的 AI 批注会在打开存档时自动合并。
+
 ```jsonc
-// data/user/<id>/progress.json
+// %APPDATA%/fuyan/user/<id>/ai-threads.json —— 右下角「问 AI」的自由对话
+{ "items": [{ "id": "t_...", "title": "发热怎么分类", "messages": [...], "createdAt": "…", "updatedAt": "…" }] }
+```
+
+```jsonc
+// %APPDATA%/fuyan/user/<id>/progress.json
 {
   "quiz": {
     "records": { "A-001": { "ok": true, "ans": 3, "at": "…" } },  // 每题最后一次

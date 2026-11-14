@@ -2,7 +2,7 @@
 import { state, $, esc, toast, openModal, closeModal, confirmDialog, debounce, fmtDate } from './core.js';
 import { api } from './api.js';
 import { App } from './app.js';
-import { bindDrawer, openDrawer, askWithSelection, closeDrawer, openChat } from './ai.js';
+import { bindDrawer, openDrawer, askWithSelection, closeDrawer, openChat, mergeDuplicateAiNotes } from './ai.js';
 
 let iframe = null;
 let currentId = '';
@@ -23,6 +23,8 @@ export async function render(params, query) {
   await App.loadUserData(id);
   enteredAt = Date.now();
   lastSection = '';
+  // 老数据里同一个词查过多次会叠出多条 AI 批注：进存档时合并一次
+  await mergeDuplicateAiNotes().catch(() => {});
 
   App.setCrumbs(`<a href="#/">存档库</a><span class="sep">/</span><b>${esc(manifest.title)}</b><span class="sep">·</span><span>${esc(manifest.subtitle || '')}</span>`);
   document.title = `${manifest.title} · 复研`;
@@ -39,7 +41,8 @@ export async function render(params, query) {
   main.className = 'main';
   main.innerHTML = `<div class="reader">
     <div class="reader-progress"><i id="read-bar"></i></div>
-    <iframe id="reader-frame" title="${esc(manifest.title)}" src="/archive/${encodeURIComponent(id)}/content.html"></iframe>
+    <iframe id="reader-frame" title="${esc(manifest.title)}" src="/archive/${encodeURIComponent(id)}/content.html" style="opacity:0;visibility:hidden;transition:opacity .1s ease"></iframe>
+    <div id="reader-veil" style="position:absolute;inset:0;background:var(--bg);z-index:2"></div>
     <div class="reader-loading" id="reader-loading">正在载入内容…</div>
     <div class="reader-fab">
       <button class="btn primary" id="reader-ai" title="问 DeepSeek（也可以先选中正文）">✦ 问 AI</button>
@@ -114,15 +117,42 @@ export async function render(params, query) {
       },
     };
 
-    // 记忆阅读位置
+    // 记忆阅读位置：先瞬间跳到上次的位置，确认到位了再显示（避免闪一下封面）
     const wantSection = query.get('s');
     const wantNote = query.get('note');
     const read = state.progress.read || {};
-    if (wantSection) {
-      setTimeout(() => fy.api.goto(wantSection), 60);
-    } else if (read.scrollY > 40) {
-      setTimeout(() => fy.api.scrollToY(read.scrollY), 60);
-    }
+    const target = Math.max(0, read.scrollY || 0);
+    let tries = 0;
+    let shown = false;
+    const show = () => {
+      if (shown || !iframe) return;
+      shown = true;
+      const veil = $('#reader-veil');
+      if (veil) veil.remove();
+      iframe.style.visibility = 'visible';
+      iframe.style.opacity = '1';
+    };
+    const restore = () => {
+      if (!iframe) return;
+      if (wantSection) {
+        fy.api.goto(wantSection);
+        requestAnimationFrame(show);
+        return;
+      }
+      fy.api.scrollToY(target);
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          const y = fy.api.scrollTop ? fy.api.scrollTop() : target;
+          if (target > 40 && Math.abs(y - target) > 6 && tries++ < 8) {
+            setTimeout(restore, 45);
+            return;
+          }
+          show();
+        })
+      );
+    };
+    setTimeout(restore, 40);
+    setTimeout(show, 1200); // 兜底：内容异常时也要看得见
     if (wantNote) {
       setTimeout(() => {
         const ok = fy.api.focusNote(wantNote);
@@ -228,11 +258,15 @@ export function refreshHighlights() {
 
 function openNoteEditor(sel) {
   const sectionTitle = state.reader ? state.reader.sectionTitle : '';
+  // 同一段文字只留一条批注：已有就改成编辑，不再叠一条
+  const existing = (state.notes || []).find(
+    (n) => n.kind !== 'ai' && n.anchor && n.anchor.start === sel.anchor.start && n.anchor.end === sel.anchor.end
+  );
   openModal(
-    `<h3>新建批注</h3><p class="sub">${esc(sectionTitle || '正文')} · 会一直贴在这段文字上</p>
+    `<h3>${existing ? '编辑批注' : '新建批注'}</h3><p class="sub">${esc(sectionTitle || '正文')} · 会一直贴在这段文字上</p>
      <div class="quote">${esc(sel.text)}</div>
      <label class="field"><span>你的批注（可留空，只做标记）</span>
-       <textarea id="note-text" rows="5" placeholder="写点什么：考点、易混、老师原话…"></textarea></label>
+       <textarea id="note-text" rows="5" placeholder="写点什么：考点、易混、老师原话…">${existing ? esc(existing.note || '') : ''}</textarea></label>
      <div class="foot"><button class="btn" data-x="cancel">取消</button>
        <button class="btn primary" data-x="save">保存批注</button></div>`,
     {
@@ -241,20 +275,25 @@ function openNoteEditor(sel) {
         box.querySelector('[data-x=save]').onclick = async () => {
           const text = box.querySelector('#note-text').value.trim();
           const now = new Date().toISOString();
-          state.notes.push({
-            id: 'a_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            kind: 'note',
-            anchor: { ...sel.anchor },
-            quote: sel.text,
-            note: text,
-            section: sectionTitle,
-            createdAt: now,
-            updatedAt: now,
-          });
+          if (existing) {
+            existing.note = text;
+            existing.updatedAt = now;
+          } else {
+            state.notes.push({
+              id: 'a_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+              kind: 'note',
+              anchor: { ...sel.anchor },
+              quote: sel.text,
+              note: text,
+              section: sectionTitle,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
           closeModal();
           try {
             await persistNotes();
-            toast('已保存批注', 'ok');
+            toast(existing ? '批注已更新' : '已保存批注', 'ok');
           } catch (e) {
             toast('保存失败：' + e.message, 'bad');
           }

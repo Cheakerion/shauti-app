@@ -28,7 +28,7 @@ function Find-Gh {
 $gh = Find-Gh
 
 # 版本号
-$ver = (Get-Content (Join-Path $root "version.json") -Raw | ConvertFrom-Json).version
+$ver = (Get-Content (Join-Path $root "version.json") -Raw -Encoding UTF8 | ConvertFrom-Json).version
 if (-not $Tag) { $Tag = "v$ver" }
 $dist = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
@@ -50,6 +50,14 @@ if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
 Remove-Item $stage -Recurse -Force
 Write-Host "   $zip  ($([math]::Round((Get-Item $zip).Length / 1KB)) KB)"
+# 安全检查：安装包里绝不能带用户数据（批注 / 对话 / 进度 / 配置）
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$za = [System.IO.Compression.ZipFile]::OpenRead($zip)
+$names = $za.Entries | ForEach-Object { $_.FullName }
+$za.Dispose()
+$leak = $names | Where-Object { $_ -match '(^|/)(data|node_modules)/' -or $_ -match 'annotations\.json|ai-threads\.json|progress\.json|config\.json' }
+if ($leak) { throw "安装包里发现用户数据，已中止：$($leak -join ', ')" }
+Write-Host "   检查：无批注 / 对话 / 配置等用户数据" -ForegroundColor DarkGray
 
 Write-Host "== 2/5 生成在线存档清单 ==" -ForegroundColor Cyan
 $env:PYTHONIOENCODING = "utf-8"

@@ -304,6 +304,14 @@ body.reading .main{height:calc(100vh - var(--top-h))}
 .ai-msg.assistant .bubble{white-space:pre-wrap;color:var(--ink)}
 .ai-msg .caret{display:inline-block;width:7px;height:15px;background:var(--accent);vertical-align:-2px;animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
+.drawer-head .hist{height:30px;padding:0 10px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;border-radius:8px;font-size:12px}
+.drawer-head .hist:hover{background:var(--panel-2);color:var(--ink)}
+.ai-quote{white-space:pre-wrap;margin-bottom:12px}
+.ai-hist{display:flex;flex-direction:column;gap:6px}
+.ai-hist-item{display:flex;flex-direction:column;gap:2px;text-align:left;padding:10px 12px;border:1px solid var(--line);background:transparent;border-radius:10px;cursor:pointer;font:inherit;color:var(--ink)}
+.ai-hist-item:hover{background:var(--panel-2);border-color:var(--accent)}
+.ai-hist-item .t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ai-hist-item .s{font-size:11px;color:var(--muted)}
 .toast-wrap{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center}
 .toast{background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:13px;box-shadow:var(--shadow-lg);animation:pop .2s ease}
 .toast.ok{background:var(--ok)} .toast.bad{background:var(--bad)}
