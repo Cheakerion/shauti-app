@@ -14,6 +14,12 @@ let lastSection = '';
 
 const saveProgressSoon = debounce(() => flushProgress(), 900);
 
+// 外壳切日夜时，把主题同步进存档 iframe（只注册一次）
+window.addEventListener('fuyan:theme', () => {
+  const fy = state.reader && state.reader.fy;
+  if (fy && fy.api && fy.api.setTheme) fy.api.setTheme(document.documentElement.dataset.theme || 'light');
+});
+
 /* ---------------------------------------------------------------- 渲染 */
 export async function render(params, query) {
   const id = params.id || state.archiveId;
@@ -88,6 +94,7 @@ export async function render(params, query) {
     fy.api.setSections(sections);
     fy.api.setProgress(state.progress);
     fy.api.setNotes(cleanNotes(state.notes));
+    if (fy.api.setTheme) fy.api.setTheme(document.documentElement.dataset.theme || 'light');
     applyHomeProgress();
 
     fy.host = {

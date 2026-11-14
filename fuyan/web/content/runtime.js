@@ -512,6 +512,12 @@
       state.progress = p || null;
       applyMastered();
     },
+    /** 跟随外壳的日间/夜间：存档里的 [data-theme="dark"] 会自动换成深色变量 */
+    setTheme(t) {
+      const dark = t === 'dark';
+      doc.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      doc.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+    },
     focusNote(id) {
       return focusNote(id);
     },
