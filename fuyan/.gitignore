@@ -12,6 +12,9 @@ data/runtime.json
 # 本机配置（可能含 API Key）
 data/config.json
 
+# 便携版 Node（首次启动按需下载，约 80MB）
+runtime/
+
 # ---- 工具产物 ----
 __pycache__/
 *.pyc

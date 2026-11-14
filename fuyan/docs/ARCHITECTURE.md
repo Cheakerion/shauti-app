@@ -39,7 +39,11 @@ fuyan/
 │  ├─ index.html  css/app.css
 │  ├─ js/{app,core,api,library,reader,quiz,notes,search,settings,ai,e2e}.js
 │  └─ content/{runtime.js,overlay.css}   # 注入存档文档
-├─ tools/{build_archive.py, e2e.mjs, ps/*.ps1}
+├─ tools/{build_archive.py, e2e.mjs, ensure-node.ps1, ps/*.ps1}
+```
+
+启动链路：`启动复研.vbs` → `tools/ensure-node.ps1`（PATH 里找 Node 18+，没有就看 `runtime\node`，
+再没有就弹窗询问是否下载便携版）→ 用找到的 node 起 `server.js`，由 server 打开应用窗口。
 └─ docs/
 ```
 

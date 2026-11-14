@@ -43,7 +43,9 @@ node server.js --port 5300     # 指定端口
 ```
 
 > 不需要 npm install：整个程序零第三方依赖，只用 Node 自带模块。
-> 需要 Node 18+（本机 `D:\node.exe` v24 可用；`.bat` 里也写了 DSH 自带 Node 的兜底路径）。
+> **运行环境**：需要 Node 18+。没有也能用——第一次双击 `启动复研` 会检测，缺的话弹窗问你要不要
+> 自动下载便携版（约 30 MB，解压到程序目录 `runtime\node`，不装系统、不需要管理员权限）。
+> 也可以自己装 Node.js，或设 `FUYAN_NODE` 指向已有的 node.exe。
 
 ---
 
