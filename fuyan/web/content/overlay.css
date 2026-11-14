@@ -1,0 +1,54 @@
+/* 复研 · 注入到存档文档里的覆盖样式（批注高亮 / 动效 / 少量修正） */
+
+/* ---------- 批注高亮（CSS Custom Highlight API） ---------- */
+::highlight(fy-note) {
+  background-color: rgba(250, 204, 21, .34);
+}
+::highlight(fy-ai) {
+  background-color: rgba(59, 130, 246, .26);
+}
+::highlight(fy-active) {
+  background-color: rgba(250, 204, 21, .72);
+  text-decoration: underline;
+  text-decoration-color: rgba(180, 83, 9, .8);
+  text-decoration-thickness: 2px;
+}
+::highlight(fy-search) {
+  background-color: rgba(15, 118, 110, .32);
+}
+
+/* ---------- 跳转闪烁 ---------- */
+.fy-flash {
+  animation: fyFlash 1.6s ease;
+  border-radius: 6px;
+}
+@keyframes fyFlash {
+  0% { background-color: rgba(250, 204, 21, .55); }
+  100% { background-color: transparent; }
+}
+
+/* ---------- 名解卡：只看英文自测 ---------- */
+.cards.quiz-mode .card .zh,
+.cards.quiz-mode .card .def {
+  visibility: hidden;
+}
+.cards.quiz-mode .card .face.front .hint,
+.cards.quiz-mode .card .face.back .hint {
+  visibility: hidden;
+}
+.card.mastered {
+  box-shadow: 0 0 0 2px rgba(21, 128, 61, .45);
+}
+.card .mark.mastered {
+  background: rgba(21, 128, 61, .12);
+  color: #15803d;
+}
+
+/* ---------- 让内容在 iframe 里更稳 ---------- */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+img { max-width: 100%; height: auto; }

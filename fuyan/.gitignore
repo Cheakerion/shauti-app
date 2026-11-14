@@ -1,0 +1,23 @@
+# ---- 运行时数据：不进版本库 ----
+# 存档由 tools/build_archive.py 从复习站 HTML 生成；含课程内容版权，故不入库
+data/archives/
+# 批注与做题进度（个人数据）
+data/user/
+# 导出的存档包
+data/exports/
+# 导入/下载临时目录
+data/tmp/
+# 端口/pid
+data/runtime.json
+# 本机配置（可能含 API Key）
+data/config.json
+
+# ---- 工具产物 ----
+__pycache__/
+*.pyc
+*.log
+node_modules/
+dist-test/
+*.lnk
+.DS_Store
+Thumbs.db
