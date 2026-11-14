@@ -175,6 +175,10 @@ export function applyTheme(theme) {
   state.theme = t;
   const btn = $('#btn-theme');
   if (btn) btn.textContent = t === 'dark' ? '☀' : '◐';
+  // 通知阅读器把主题同步进 iframe（存档内容里也有 [data-theme="dark"]）
+  try {
+    window.dispatchEvent(new CustomEvent('fuyan:theme', { detail: t }));
+  } catch (_) {}
 }
 
 export function toggleTheme() {
@@ -182,6 +186,6 @@ export function toggleTheme() {
   applyTheme(next);
   try { localStorage.setItem('fuyan.theme', next); } catch (_) {}
   if (state.config) {
-    import('./api.js').then(({ saveConfig }) => saveConfig({ ui: { theme: next } }).catch(() => {}));
+    import('./api.js').then(({ api }) => api.saveConfig({ ui: { theme: next } }).catch(() => {}));
   }
 }

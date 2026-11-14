@@ -564,13 +564,35 @@ async function scenarioFlash() {
   await sleep(1300);
 }
 
+async function scenarioTheme() {
+  await goto('#/read/infectious');
+  const w = await getReader();
+  await sleep(400);
+  const wasDark = document.documentElement.dataset.theme === 'dark';
+  if (!wasDark) {
+    $('#btn-theme').click();
+    await sleep(350);
+  }
+  ok('主题: 外壳已切深色', document.documentElement.dataset.theme === 'dark');
+  ok('主题: 存档内容跟着切深色', w.document.documentElement.dataset.theme === 'dark', 'iframe=' + w.document.documentElement.dataset.theme);
+  const bg = w.getComputedStyle(w.document.body).backgroundColor;
+  const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  const lum = m ? (Number(m[1]) + Number(m[2]) + Number(m[3])) / 3 : 255;
+  ok('主题: 正文背景变深', lum < 80, 'bg=' + bg);
+  if (!wasDark) {
+    $('#btn-theme').click();
+    await sleep(350);
+    ok('主题: 能切回浅色', w.document.documentElement.dataset.theme !== 'dark', 'iframe=' + w.document.documentElement.dataset.theme);
+  }
+}
+
 export async function run(name) {
   const map = {
     reader: scenarioReader, quiz: scenarioQuiz, search: scenarioSearch,
     settings: scenarioSettings, ai: scenarioAi, digestive: scenarioDigestive, done: scenarioDone,
     library: scenarioLibrary, longpress: scenarioLongpress, quark: scenarioQuark, aigate: scenarioAiGate,
     update: scenarioUpdate, nav: scenarioNav, aibubble: scenarioAiBubble, aichat: scenarioAiChat, scroll: scenarioScrollRestore,
-    flash: scenarioFlash,
+    flash: scenarioFlash, theme: scenarioTheme,
   };
   const fn = map[name];
   let err = '';
