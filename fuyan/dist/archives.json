@@ -11,18 +11,18 @@
    "notes": "22 名解 · 10 简答 · 14 病例 · 196 题",
    "size": 130721,
    "updatedAt": "2026-11-14",
-   "url": "https://cdn.jsdelivr.net/gh/makainuo/shauti-app@main/dist/infectious-1.3.0.zip"
+   "url": "https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/fuyan/dist/infectious-1.3.0.zip"
   },
   {
    "id": "digestive",
    "title": "消化系统",
    "subtitle": "临床推理复习站",
-   "version": "2.0.0",
+   "version": "2.1.0",
    "accent": "#bd5238",
-   "notes": "44 名解 · 19 简答 · 5 病例 · 62 题",
-   "size": 112236,
+   "notes": "46 名解 · 19 简答 · 5 病例 · 63 题",
+   "size": 225650,
    "updatedAt": "2026-11-14",
-   "url": "https://cdn.jsdelivr.net/gh/makainuo/shauti-app@main/dist/digestive-2.0.0.zip"
+   "url": "https://cdn.jsdelivr.net/gh/Cheakerion/shauti-app@master/fuyan/dist/digestive-2.1.0.zip"
   }
  ]
 }
