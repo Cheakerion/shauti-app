@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0",
-  "update": 1,
-  "notes": "首个 PC 测试版：存档导入/阅读/刷题/批注/DeepSeek 问答/网盘导入",
-  "url": ""
+  "version": "0.1.1",
+  "update": 2,
+  "notes": "新增：桌面图标与无黑框启动、前进/后退导航、GitHub 在线存档、更新提示、链接导入、网盘作者通道发布",
+  "url": "https://github.com/makainuo/shauti-app/releases/tag/v0.1.1"
 }
