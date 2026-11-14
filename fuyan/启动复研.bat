@@ -1,23 +1,23 @@
 @echo off
 rem ============================================================
-rem  Fuyan MedReview launcher
+rem  Fuyan MedReview launcher (debug: keeps the console)
 rem  Keep this file ASCII-only: cmd.exe mis-parses UTF-8 batch files.
 rem ============================================================
 setlocal
 cd /d "%~dp0"
 
 set "NODE_EXE="
-where node >nul 2>nul && set "NODE_EXE=node"
+if exist "runtime\node\node.exe" set "NODE_EXE=%CD%\runtime\node\node.exe"
+
 if not defined NODE_EXE (
-  if exist "C:\Users\29866\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe" (
-    set "NODE_EXE=C:\Users\29866\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe"
+  powershell -NoProfile -ExecutionPolicy Bypass -File "tools\ensure-node.ps1"
+  if errorlevel 1 (
+    echo [fuyan] Node.js 18+ was not found, and the portable download did not finish.
+    echo         Install Node.js from https://nodejs.org/ and run this file again.
+    pause
+    exit /b 1
   )
-)
-if not defined NODE_EXE (
-  echo [fuyan] Node.js 18+ was not found.
-  echo         Install Node.js from https://nodejs.org/ and run this file again.
-  pause
-  exit /b 1
+  if exist "runtime\node\node.exe" (set "NODE_EXE=%CD%\runtime\node\node.exe") else (set "NODE_EXE=node")
 )
 
 echo [fuyan] starting MedReview ...
