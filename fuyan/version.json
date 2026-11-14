@@ -1,0 +1,6 @@
+{
+  "version": "0.1.2",
+  "update": 3,
+  "notes": "批注去重（同段文字只留一条，追问接在后面）、AI 对话可回看、概念提问直接解释不再套考试语境、恢复阅读位置不再翻滚/闪封面、用户数据移到 %APPDATA% 不怕覆盖安装",
+  "url": "https://github.com/makainuo/shauti-app/releases/tag/v0.1.2"
+}

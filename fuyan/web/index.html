@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>复研 · MedReview</title>
+<link rel="stylesheet" href="/css/app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f766e'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='%23fff' font-family='serif'%3E复%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<div id="boot" class="boot">
+  <div class="boot-mark">复</div>
+  <div class="boot-text">复研 · MedReview</div>
+  <div class="boot-tip">正在加载存档…</div>
+</div>
+
+<header class="top" id="top">
+  <a class="brand" href="#/" title="返回存档库">
+    <span class="brand-mark">复</span>
+    <span class="brand-text"><b>复研</b><i>MedReview</i></span>
+  </a>
+  <div class="navbtns">
+    <button class="tool icon" id="btn-back" title="后退（Alt+←）" disabled>←</button>
+    <button class="tool icon" id="btn-forward" title="前进（Alt+→）" disabled>→</button>
+  </div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="tools">
+    <button class="tool" id="btn-search" title="全站搜索（Ctrl+K）"><span>🔎</span><em>搜索</em><kbd>Ctrl K</kbd></button>
+    <button class="tool" id="btn-notes" title="批注管理"><span>✎</span><em>批注</em><b class="badge" id="note-count" hidden>0</b></button>
+    <button class="tool" id="btn-quiz" title="刷题"><span>▤</span><em>刷题</em></button>
+    <button class="tool" id="btn-update" title="有新版本" hidden>⬆ 有更新</button>
+    <button class="tool icon" id="btn-theme" title="深/浅色">◐</button>
+    <button class="tool icon" id="btn-settings" title="设置">⚙</button>
+  </div>
+</header>
+
+<div class="shell" id="shell">
+  <aside class="side" id="side" hidden></aside>
+  <main class="main" id="main"></main>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+<div id="modal-root"></div>
+<aside class="drawer" id="drawer" hidden>
+  <header class="drawer-head">
+    <div class="drawer-title" id="drawer-title">问 DeepSeek</div>
+    <button class="hist" id="drawer-history" title="对话记录">记录</button>
+    <button class="x" id="drawer-close" title="关闭">✕</button>
+  </header>
+  <div class="drawer-body" id="drawer-body"></div>
+  <footer class="drawer-foot" id="drawer-foot" hidden>
+    <textarea id="drawer-input" rows="1" placeholder="继续追问…（Enter 发送，Shift+Enter 换行）"></textarea>
+    <button class="btn primary" id="drawer-send">发送</button>
+  </footer>
+</aside>
+<div class="mask" id="mask" hidden></div>
+
+<div class="cmdk" id="cmdk" hidden>
+  <div class="cmdk-box">
+    <input id="cmdk-input" placeholder="搜索知识点 / 题干 / 解析 / 批注…" autocomplete="off">
+    <div class="cmdk-list" id="cmdk-list"></div>
+    <div class="cmdk-foot"><span>↑↓ 选择 · Enter 跳转 · Esc 关闭</span><span id="cmdk-stat"></span></div>
+  </div>
+</div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
