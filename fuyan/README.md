@@ -7,6 +7,17 @@
 - 现成存档：**传染病学**（196 题）、**消化系统**（62 题）
 - 来源：好友的 [shauti-app](https://github.com/Cheakerion/shauti-app)（Kotlin/Compose 刷题 App）+ 两份复习站的内容与视觉
 
+### 已发布
+
+| 内容 | 地址 |
+|---|---|
+| 代码 / 存档包 | https://github.com/makainuo/shauti-app/tree/master/fuyan （fork 自 `Cheakerion/shauti-app`，PR [#1](https://github.com/Cheakerion/shauti-app/pull/1) 待合并） |
+| 软件下载 | https://github.com/makainuo/shauti-app/releases/tag/v0.1.1 |
+| 在线存档清单 | `https://cdn.jsdelivr.net/gh/makainuo/shauti-app@master/fuyan/dist/archives.json` |
+| 更新源 | 仓库 `makainuo/shauti-app` · 分支 `master` · 路径 `fuyan/` |
+
+> 合并 PR 后，把上面三处的 `makainuo` 换成 `Cheakerion`、路径不变即可（设置里改）。
+
 ---
 
 ## 一、怎么跑起来
